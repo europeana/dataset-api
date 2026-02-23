@@ -1,0 +1,38 @@
+*.user.properties
+
+loader/logs
+logs
+
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### Eclipse ##
+***/.settings/**
+***/target/**
+***/.project
+***/.classpath
+
+### NetBeans ###
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+/common/.mvn/
+
+.DS_Store
