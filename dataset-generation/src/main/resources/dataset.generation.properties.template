@@ -1,0 +1,20 @@
+# URL to the oai server
+oaipmh.url=
+search.api.url=
+
+
+## keycloak endpoint for access
+europeana.apikey.serviceurl =
+keycloak.token.endpoint =
+keycloak.token.grant.params =
+
+#Location of the dataset files
+dataset.files.location=
+snapshot.file=datasets_snapshot.txt
+
+# Mongo connection settings
+mongo.connectionUrl=
+mongo.dataset.database=
+mongo.max.idle.time.millisec=
+
+slack.webhook=
