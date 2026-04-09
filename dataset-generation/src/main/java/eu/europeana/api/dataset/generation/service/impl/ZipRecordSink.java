@@ -28,12 +28,13 @@ public class ZipRecordSink implements RecordSink, Closeable {
 
     private static final Logger LOG = LogManager.getLogger(ZipRecordSink.class);
 
+    private final String datasetId;
     private final ZipOutputStream zipOut;
-
     private final DataFormatter formatter;
     private long counter = 0;
 
-    public ZipRecordSink(File outputFile, DataFormatter formatter) throws IOException {
+    public ZipRecordSink(String datasetId, File outputFile, DataFormatter formatter) throws IOException {
+        this.datasetId = datasetId;
         this.zipOut = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(outputFile)));
         this.formatter = formatter;
 
@@ -51,8 +52,10 @@ public class ZipRecordSink implements RecordSink, Closeable {
 
         counter++;
 
-        if (counter % 1000 == 0) {
-            LOG.info("Written {} records to ZIP for record {}", counter, recordId);
+        if (LOG.isDebugEnabled()) {
+            if (counter % 1000 == 0) {
+                LOG.info("Set : {} -  Written {} records to {} zip ", datasetId,  counter, formatter.getFileExtension());
+            }
         }
     }
 

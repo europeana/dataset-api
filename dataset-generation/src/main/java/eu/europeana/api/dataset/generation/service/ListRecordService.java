@@ -2,6 +2,7 @@ package eu.europeana.api.dataset.generation.service;
 
 import eu.europeana.api.dataset.generation.config.GeneratorSettings;
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
+import eu.europeana.api.dataset.generation.utils.ProgressLogger;
 import eu.europeana.api.dataset.oaipmh.OAIPMHServiceClient;
 import eu.europeana.api.dataset.oaipmh.model.OaiPage;
 import eu.europeana.api.dataset.oaipmh.model.Record;
@@ -38,6 +39,8 @@ public class ListRecordService {
      */
     public void streamRecords(ScheduledDataset dataset, RecordSink sink) throws Exception {
         LOG.info("Streaming records for set {}", dataset.getDatasetId());
+        ProgressLogger logger = new ProgressLogger(dataset.getDatasetId(), dataset.getTotalSize(), 30);
+
         long counter = 0;
         long start = System.currentTimeMillis();
         String resumptionToken = null;
@@ -64,15 +67,7 @@ public class ListRecordService {
                         sink.consume(record);
                         counter++;
 
-                        // Progress logging every 1000 records
-                        if (counter % 1000 == 0) {
-                            LOG.info(
-                                    "Dataset {} progress: {} / {} records harvested",
-                                    dataset.getDatasetId(),
-                                    counter,
-                                    dataset.getTotalSize()
-                            );
-                        }
+                        logger.logProgress(counter);
                     }
                 }
 

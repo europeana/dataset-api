@@ -50,7 +50,7 @@ public class OaiPmhZipProcessor extends BaseProcessor {
 
         for (var entry : formats.entrySet()) {
             File zipFile = new File(createFolder(entry.getKey().name()), dataset.getDatasetId() + ".zip");
-            sinks.add(new ZipRecordSink(zipFile, entry.getValue()));
+            sinks.add(new ZipRecordSink(dataset.getDatasetId(), zipFile, entry.getValue()));
         }
 
         try (MultiRecordSink multiSink = new MultiRecordSink(sinks)) {
