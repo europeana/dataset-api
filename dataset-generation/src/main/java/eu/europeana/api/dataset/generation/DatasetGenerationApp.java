@@ -43,7 +43,7 @@ public class DatasetGenerationApp implements CommandLineRunner {
         LOG.info("Starting Dataset Generation App ...");
 
         Date lastHarvestDate = scheduleDatasetService.getLatestHarvestDate();
-        if(lastHarvestDate == null) {
+        if (lastHarvestDate == null) {
             LOG.info("No previous harvest date found, All the datasets will be harvested .....");
         }
         List<Dataset> datasetToSchedule = searchApiDatasetReader.getDataset(lastHarvestDate);

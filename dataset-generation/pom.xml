@@ -49,12 +49,6 @@
 
     <dependency>
         <groupId>eu.europeana.api</groupId>
-        <artifactId>commons-sb3-clientutils</artifactId>
-        <version>${api-commons-sb3.version}</version>
-    </dependency>
-
-    <dependency>
-        <groupId>eu.europeana.api</groupId>
         <artifactId>commons-sb3-definitions</artifactId>
         <version>${api-commons-sb3.version}</version>
     </dependency>
