@@ -1,8 +1,5 @@
 package eu.europeana.api.dataset.generation.service;
 
-import com.mongodb.bulk.BulkWriteResult;
-import com.mongodb.client.result.DeleteResult;
-import dev.morphia.query.filters.Filter;
 import eu.europeana.api.dataset.generation.model.Dataset;
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
 import eu.europeana.api.dataset.generation.repository.ScheduledDatasetRepository;
@@ -12,8 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.util.Date;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -40,84 +36,85 @@ public class ScheduleDatasetService {
     }
 
     /**
-     * Creates {@link ScheduledDataset} instances for dataset ids and their total size, and then saves
-     * them to the database.
+     * Schedules a list of datasets for downloading by creating or updating
+     * records in the database based on the given dataset details.
      *
-     * @param datasetsToUpdate
+     * @param datasetsToUpdate A list of {@link Dataset} objects containing
+     *                         the details of datasets to be scheduled for download.
+     *                         If the list is null or empty, the method does nothing.
      */
     public void scheduleDatasetsForDownload(List<Dataset> datasetsToUpdate) {
-        List<ScheduledDataset> tasks = createScheduledTasks(datasetsToUpdate, false);
+        // Fetch all existing records in ONE query
+        List<ScheduledDataset> existingList = findAll(datasetsToUpdate);
+        Map<String, ScheduledDataset> existingMap = existingList.stream()
+                .collect(Collectors.toMap(
+                        ScheduledDataset::getDatasetId,
+                        e -> e
+                ));
 
-        BulkWriteResult writeResult = repository.upsertBulk(tasks);
-        LOGGER.debug(
-                "Persisted scheduled datasets to db: matched={}, modified={}, inserted={}",
-                writeResult.getMatchedCount(),
-                writeResult.getModifiedCount(),
-                writeResult.getInsertedCount());
-    }
-
-    /**
-     * Helper method to create {@link ScheduledDataset} instances for dataset ids and their total size.
-     * @param datasetsToUpdate datasets to update
-     * @param hasBeenProcessed with their processing status
-     * @return List of scheduled datasets
-     */
-    private List<ScheduledDataset> createScheduledTasks(List<Dataset> datasetsToUpdate, boolean hasBeenProcessed) {
         Instant now = Instant.now();
 
-        return datasetsToUpdate.stream()
-                .map(
-                        dataset ->
-                                new ScheduledDataset.Builder(dataset.getDatasetId(), dataset.getDatasetSize())
-                                        .setProcessed(hasBeenProcessed)
-                                        .modified(now)
-                                        .build())
-                .collect(Collectors.toList());
-    }
+        // Upsert
+        List<ScheduledDataset> toSave = new ArrayList<>();
 
+        for (Dataset dataset : datasetsToUpdate) {
+            ScheduledDataset entity = existingMap.get(dataset.getDatasetId());
+            if (entity == null) { // insert
+                entity = new ScheduledDataset();
+                entity.setDatasetId(dataset.getDatasetId());
+                entity.setCreated(now);
+                entity.setHasBeenProcessed(false);
+            }
+            // UPDATE (for both insert + update)
+            entity.setTotalSize(dataset.getDatasetSize());
+            entity.setModified(now);
 
-    public List<ScheduledDataset> getDatasets(
-            int start, int count, Filter[] queryFilters) {
-        return repository.getDatasets(start, count, queryFilters);
+            toSave.add(entity);
+        }
+
+        // 4. Single batch write to DB
+        List<ScheduledDataset> data = repository.saveAll(toSave);
+        LOGGER.info("Scheduled {} datasets for download", toSave.size());
+        LOGGER.info("Scheduled datasets - {}",data.stream().map(ScheduledDataset::getDatasetId).toList());
+
     }
 
     /**
-     * Retrieves the count of scheduled datasets that are currently marked as "running"
-     * (i.e., hasBeenProcessed is false).
+     * The method extracts the dataset IDs from the given list and fetches their associated entities
+     * from the repository in a single query.
      *
-     * @return the number of scheduled datasets that are not marked as processed
+     * @param datasetsToUpdate A list of {@link Dataset} objects to be scheduled for download.
+     * @return A list of {@link ScheduledDataset} objects retrieved from the repository. The list will
+     *         contain entities matching the IDs of the provided datasets. If no matching entities are found,
+     *         an empty list is returned.
      */
-    public long getRunningTasksCount() {
-        return repository.getRuningTasksCount();
+    private List<ScheduledDataset> findAll(List<Dataset> datasetsToUpdate) {
+        List<String> ids = datasetsToUpdate.stream()
+                .map(Dataset::getDatasetId)
+                .toList();
+
+       return repository.findAllById(ids);
     }
 
-    /**
-     * Marks entities as processed.
-     *
-     * @param scheduledDatasets
-     */
-    public void markAsProcessed(List<ScheduledDataset> scheduledDatasets) {
-        BulkWriteResult writeResult = repository.markAsProcessed(scheduledDatasets);
-        LOGGER.debug(
-                "Marked scheduled datasets as processed: matched={}, modified={}, inserted={}",
-                writeResult.getMatchedCount(),
-                writeResult.getModifiedCount(),
-                writeResult.getInsertedCount());
+    public void markDatasetAsProcessed(List<ScheduledDataset> datasets) {
+        List<ScheduledDataset> existingDatasets = repository.findAllById(datasets.stream().map(ScheduledDataset::getDatasetId).toList());
+
+        List<ScheduledDataset> toSave = new ArrayList<>();
+
+        for (ScheduledDataset dataset : existingDatasets) {
+            dataset.setHasBeenProcessed(true);
+            toSave.add(dataset);
+        }
+        repository.saveAll(toSave);
     }
 
-    public void cleanUpAfterProcessing() {
-        DeleteResult results = repository.cleanUpAfterProcessing();
-        LOGGER.debug(
-                "Datasets marked as processed have been deleted: deleted={}",
-                results.getDeletedCount());
-    }
 
-    public Date getLatestHarvestDate() {
-        return repository.getLastHarvestDate();
-    }
-
-    public void updateLastHarvestDate(Date lastHarvestDate) {
-        LOGGER.info("Updating last harvest date to {}", lastHarvestDate);
-        repository.updateLastHarvestDate(lastHarvestDate);
-    }
+//    public List<ScheduledDataset> getDatasets(int start, int limit, Filter[] filters) {
+//        return datastore.find(ScheduledDataset.class).filter(filters).iterator(new FindOptions()
+//                .projection().include(ModelConstants.datasetId, ModelConstants.totalSize).skip(start)
+//                // matches the index sort order defined in ScheduledDataset
+//                // sort with _id in case of multiple matching created values
+//                .sort(descending(ModelConstants.totalSize), ascending(ModelConstants.created)).limit(limit)).toList();
+//
+//    }
 }

@@ -9,6 +9,7 @@ import org.apache.hc.core5.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.stream.XMLStreamException;
 import java.io.IOException;
 import java.util.Collections;
@@ -38,7 +39,7 @@ public class OAIPMHServiceClient {
             if (response.getCode() == HttpStatus.SC_OK) {
                 return OaiRawStreamingParser.parseOaiResponse(response.getEntity().getContent());
             }
-        } catch (IOException | XMLStreamException e) {
+        } catch (IOException | XMLStreamException | ParserConfigurationException e) {
             LOG.error("Exception while getting the response from oai pmh.", e);
         }
         return  null;

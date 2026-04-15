@@ -29,8 +29,6 @@ public class ScheduledDatasetItemListener extends ItemListenerSupport<ScheduledD
 
     @Override
     public void afterWrite(Chunk<? extends ScheduledDataset> items) {
-        scheduleDatasetService.markAsProcessed((List<ScheduledDataset>) items.getItems());
+        scheduleDatasetService.markDatasetAsProcessed((List<ScheduledDataset>) items.getItems());
     }
-
-
 }

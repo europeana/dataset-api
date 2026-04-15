@@ -3,10 +3,10 @@ package eu.europeana.api.dataset.generation.service.impl;
 import eu.europeana.api.dataset.generation.service.RecordSink;
 import eu.europeana.api.dataset.oaipmh.model.Record;
 
-import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
+
 // TODO may be rename it to CompositeRecordSink OR MultiFormatRecordSink
 public class MultiRecordSink implements RecordSink, Closeable {
 
@@ -29,10 +29,8 @@ public class MultiRecordSink implements RecordSink, Closeable {
      */
     @Override
     public void consume(Record record) throws Exception {
-        byte[] data = record.metadataStream.readAllBytes(); // buffer once
         for (RecordSink sink : sinks) {
-            sink.consume(new Record(record.getIdentifier(),
-                    new ByteArrayInputStream(data)));
+            sink.consume(record);
         }
     }
 

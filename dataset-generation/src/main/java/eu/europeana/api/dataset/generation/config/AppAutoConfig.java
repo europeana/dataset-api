@@ -1,6 +1,5 @@
 package eu.europeana.api.dataset.generation.config;
 
-import dev.morphia.query.filters.Filters;
 import eu.europeana.api.commons_sb3.auth.AuthenticationBuilder;
 import eu.europeana.api.commons_sb3.auth.AuthenticationConfig;
 import eu.europeana.api.commons_sb3.auth.AuthenticationHandler;
@@ -14,24 +13,32 @@ import eu.europeana.api.dataset.generation.listener.ScheduledDatasetItemListener
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
 import eu.europeana.api.dataset.generation.processor.DatasetDeletionTasklet;
 import eu.europeana.api.dataset.generation.reader.SearchApiDatasetReader;
-import eu.europeana.api.dataset.generation.reader.batch.ScheduledDatasetDbReader;
+import eu.europeana.api.dataset.generation.reader.ScheduledDatasetDbReader;
 import eu.europeana.api.dataset.generation.service.ScheduleDatasetService;
-import eu.europeana.api.dataset.generation.utils.ModelConstants;
 import eu.europeana.api.dataset.oaipmh.OAIPMHServiceClient;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManagerFactory;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.item.ItemStreamReader;
+import org.springframework.batch.item.database.JpaPagingItemReader;
 import org.springframework.batch.item.support.SynchronizedItemStreamReader;
+import org.springframework.batch.support.transaction.ResourcelessTransactionManager;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.jdbc.datasource.init.DataSourceInitializer;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.transaction.PlatformTransactionManager;
 
-import java.util.Date;
+import javax.sql.DataSource;
+import javax.xml.transform.TransformerFactory;
 import java.util.Map;
 
 import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.*;
@@ -56,7 +63,7 @@ public class AppAutoConfig {
     ApplicationContext applicationContext;
 
     /**
-     * Generate AuthenticationHandler to access other services via EM ( like keycloak and SR API)
+     * Generate AuthenticationHandler to access other services like SR API
      * @return
      */
     public AuthenticationHandler getAuthenticationHandler() {
@@ -70,7 +77,7 @@ public class AppAutoConfig {
     }
 
     /**
-     * Creates a authentication handler for SR API access
+     * Creates an authentication handler for SR API access
      * @return authentication for SR API access
      */
     @Bean(SEARCH_RECORD_AUTH_HANDLER)
@@ -79,12 +86,26 @@ public class AppAutoConfig {
     }
 
     /**
-     * Creates a authentication handler for SR API access
+     * Creates an authentication handler for SR API access
      * @return authentication for SR API access
      */
     @Bean(BEAN_OAI_PMH_CLIENT)
     public OAIPMHServiceClient getOaipmhClient() {
         return new OAIPMHServiceClient();
+    }
+
+    /**
+     * Executor used for Steps when running Scheduled datasets.
+     * @return new ThreadedPoolTaskExecutor
+     */
+    @Bean(DATASET_GENERATION_STEP_EXECUTOR)
+    public TaskExecutor datasetGenerationStepExecutor() {
+        ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
+        taskExecutor.setCorePoolSize(settings.getBatchUpdatesCorePoolSize());
+        taskExecutor.setMaxPoolSize(settings.getBatchUpdatesMaxPoolSize());
+        taskExecutor.setQueueCapacity(settings.getBatchUpdatesQueueSize());
+
+        return taskExecutor;
     }
 
     /**
@@ -100,25 +121,60 @@ public class AppAutoConfig {
         return new ScheduledDatasetItemListener(applicationContext.getBean(ScheduleDatasetService.class));
     }
 
+    // todo update the query
+//    @StepScope
     @Bean(name = SCHEDULED_DATASET_READER)
-    @StepScope
-    public SynchronizedItemStreamReader<ScheduledDataset> scheduledTaskReader(
-            @Value("#{jobParameters[currentStartTime]}") Date currentStartTime) {
-        ScheduledDatasetDbReader reader =
-                new ScheduledDatasetDbReader(
-                        applicationContext.getBean(ScheduleDatasetService.class),
-                        settings.getBatchChunkSize(),
-                        Filters.eq(ModelConstants.hasBeenProcessed, false),
-                        Filters.lte(ModelConstants.created, currentStartTime));
-        return threadSafeReader(reader);
+    public JpaPagingItemReader<ScheduledDataset> reader(EntityManagerFactory emf) {
+
+        ScheduledDatasetDbReader reader = new ScheduledDatasetDbReader(settings.getBatchChunkSize(), emf, """
+        SELECT s
+        FROM ScheduledDataset s
+       ORDER BY s.totalSize DESC, s.created ASC, s.id ASC
+    """);
+
+//        reader.setEntityManagerFactory(emf);
+//
+//        reader.setQueryString("""
+//        SELECT s
+//        FROM ScheduledDataset s
+//       ORDER BY s.totalSize DESC, s.created ASC, s.id ASC
+//    """);
+//
+//        reader.setPageSize(settings.getBatchChunkSize()); // chunk size match recommended
+
+        return reader;
+//        return  threadSafeReader(reader);
     }
 
+
+//    @Bean(name = SCHEDULED_DATASET_READER)
+//    @StepScope
+//    public SynchronizedItemStreamReader<ScheduledDataset> scheduledTaskReader(
+//            EntityManagerFactory emf,
+//            @Value("#{jobParameters[currentStartTime]}") Date currentStartTime) {
+//        ScheduledDatasetDbReader reader =
+//                new ScheduledDatasetDbReader(
+//                        settings.getBatchChunkSize(),
+//                        """
+//        SELECT s
+//        FROM ScheduledDataset s
+//        ORDER BY s.totalSize DESC, s.created ASC
+//    """
+//                        );
+//        return threadSafeReader(reader);
+//    }
+//
 
     /** Makes ItemReader thread-safe */
     private <T> SynchronizedItemStreamReader<T> threadSafeReader(ItemStreamReader<T> reader) {
         final SynchronizedItemStreamReader<T> synchronizedItemStreamReader = new SynchronizedItemStreamReader<>();
         synchronizedItemStreamReader.setDelegate(reader);
         return synchronizedItemStreamReader;
+    }
+
+    @Bean
+    public PlatformTransactionManager transactionManager() {
+        return new  ResourcelessTransactionManager();
     }
 
     @Bean
@@ -140,10 +196,38 @@ public class AppAutoConfig {
         return new SlackConnection(settings.getSlackWebhook());
     }
 
+    /**
+     * TransformerFactory.newInstance() is thread safe,
+     *  one instance can be used for each formatter
+     * @return
+     */
     @Bean(name = DATA_FORMATS_BEAN)
     public Map<RdfFormat, DataFormatter> getFormats() {
         return Map.of(
-                RdfFormat.XML, new XMLFormatter(),
-                RdfFormat.TURTLE, new TurtleFormatter());
+                RdfFormat.XML, new XMLFormatter(TransformerFactory.newInstance()),
+                RdfFormat.TURTLE, new TurtleFormatter(TransformerFactory.newInstance()));
+    }
+
+
+    /**
+     * Initializes the Spring Batch metadata schema by explicitly loading the schema-h2.sql file
+     * to populate the database schema for batch processing.
+     *
+     * NOTE: somehow Spring Batch metadata schema: org/springframework/batch/core/schema-h2.sql
+     *        is not being loaded, forcefully loading it now
+     *
+     * @param dataSource the DataSource to which the batch schema will be applied
+     * @return a DataSourceInitializer configured to populate the Spring Batch metadata schema
+     */
+    @Bean
+    public DataSourceInitializer batchSchemaInitializer(DataSource dataSource) {
+        ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
+        populator.addScript(new ClassPathResource("org/springframework/batch/core/schema-h2.sql"));
+
+        DataSourceInitializer initializer = new DataSourceInitializer();
+        initializer.setDataSource(dataSource);
+        initializer.setDatabasePopulator(populator);
+
+        return initializer;
     }
 }

@@ -1,25 +1,25 @@
-package eu.europeana.api.dataset.generation.config.batch;
+package eu.europeana.api.dataset.generation.config;
 
-import eu.europeana.api.dataset.generation.config.GeneratorSettings;
 import eu.europeana.api.dataset.generation.listener.ScheduledDatasetItemListener;
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
 import eu.europeana.api.dataset.generation.processor.DatasetReportTasklet;
-import eu.europeana.api.dataset.generation.processor.OaiPmhZipProcessor;
 import eu.europeana.api.dataset.generation.processor.DatasetDeletionTasklet;
+import eu.europeana.api.dataset.generation.processor.OaiPmhZipProcessor;
 import eu.europeana.api.dataset.generation.writer.ScheduledDatasetWriter;
 import jakarta.annotation.Resource;
 
 import org.springframework.batch.core.ItemProcessListener;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
-import org.springframework.batch.core.configuration.support.ScopeConfiguration;
+import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
+import org.springframework.batch.core.configuration.support.DefaultBatchConfiguration;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.core.step.skip.SkipPolicy;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.support.SynchronizedItemStreamReader;
+import org.springframework.batch.item.database.JpaPagingItemReader;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.*;
@@ -42,8 +42,8 @@ import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.*;
  * @since 23 Feb 2026
  */
 @Configuration(DATASET_GENERATION_JOB_FACTORY)
-@Import(ScopeConfiguration.class)
-public class DatasetBatchConfig {
+@EnableBatchProcessing
+public class DatasetBatchConfig extends DefaultBatchConfiguration {
 
     /** SkipPolicy to ignore all failures when executing jobs, as they can be handled later */
     private static final SkipPolicy NOOP_SKIP_POLICY = (Throwable t, long skipCount) -> true;
@@ -58,22 +58,20 @@ public class DatasetBatchConfig {
     @Resource
     ScheduledDatasetItemListener itemListener;
 
+    @Resource(name = OAI_PMH_ZIP_PROCESSOR)
+    ItemProcessor<ScheduledDataset, ScheduledDataset> processor;
+
     @Resource
     PlatformTransactionManager transactionManager;
 
-    @Resource
-    JobRepository jobRepository;
-
-
     @Bean
-    public Job createScheduledDownloadJob() {
+    public Job createScheduledDownloadJob(JobRepository jobRepository) {
         return new JobBuilder(JOB_DOWNLOAD_SCHEDULED_DATASETS, jobRepository)
-                .start(datasetGenerationStep())
-                .next(removeDatasets())
-                .next(updateAndSendReport())
+                .start(datasetGenerationStep(jobRepository))
+                .next(removeDatasets(jobRepository))
+                .next(updateAndSendReport(jobRepository))
                 .build();
     }
-
 
     /**
      * Configures and returns a Spring Batch {@link Step} for generating datasets.
@@ -85,16 +83,16 @@ public class DatasetBatchConfig {
      *         including reading, processing, writing, and fault tolerance capabilities.
      */
     @Bean
-    Step datasetGenerationStep() {
+    Step datasetGenerationStep(JobRepository jobRepository) {
         return new StepBuilder("downloadDataset", jobRepository)
                 .<ScheduledDataset, ScheduledDataset>chunk(settings.getBatchChunkSize(), transactionManager)
                 .reader(getReader())
                 .processor(getProcessor())
-                .writer(getWriter()) // will write at the end status reporting and updating the processed datets in DB
+                .writer(getWriter())
                 .listener((ItemProcessListener<? super ScheduledDataset, ? super ScheduledDataset>) itemListener)
                 .faultTolerant()
                 .skipPolicy(NOOP_SKIP_POLICY)
-                .taskExecutor(getTaskExecutor())
+                .taskExecutor(getCustomTaskExecutor())
                 .throttleLimit(settings.getBatchUpdatesThrottleLimit())
                 .build();
 
@@ -112,7 +110,7 @@ public class DatasetBatchConfig {
      *         and sending a report.
      */
     @Bean
-    public Step updateAndSendReport() {
+    public Step updateAndSendReport(JobRepository jobRepository) {
         return new StepBuilder("updateDatasetStatus", jobRepository)
                 .tasklet(appContext.getBean(DatasetReportTasklet.class), transactionManager)
                 .build();
@@ -132,14 +130,14 @@ public class DatasetBatchConfig {
      * @return a {@link Step} configured for dataset removal using a {@link DatasetDeletionTasklet}.
      */
     @Bean
-    public Step removeDatasets() {
+    public Step removeDatasets(JobRepository jobRepository) {
         return new StepBuilder("removeDatasets", jobRepository)
                 .tasklet(appContext.getBean(DatasetDeletionTasklet.class), transactionManager)
                 .build();
     }
 
-    private SynchronizedItemStreamReader<ScheduledDataset> getReader() {
-        return (SynchronizedItemStreamReader<ScheduledDataset>) appContext.getBean(SCHEDULED_DATASET_READER);
+    private JpaPagingItemReader<ScheduledDataset> getReader() {
+        return (JpaPagingItemReader<ScheduledDataset>) appContext.getBean(SCHEDULED_DATASET_READER);
     }
 
     private ItemProcessor<ScheduledDataset, ScheduledDataset> getProcessor() {
@@ -150,7 +148,7 @@ public class DatasetBatchConfig {
         return appContext.getBean(ScheduledDatasetWriter.class);
     }
 
-    private TaskExecutor getTaskExecutor() {
+    private TaskExecutor getCustomTaskExecutor() {
         return appContext.getBean(DATASET_GENERATION_STEP_EXECUTOR, TaskExecutor.class);
     }
 }

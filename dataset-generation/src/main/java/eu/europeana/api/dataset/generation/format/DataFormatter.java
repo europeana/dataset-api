@@ -1,20 +1,19 @@
 package eu.europeana.api.dataset.generation.format;
 
-import java.io.InputStream;
+import eu.europeana.api.commons_sb3.error.EuropeanaApiException;
+import org.w3c.dom.Document;
+import java.io.OutputStream;
 
 /**
- * An interface for formatting metadata streams into specific formats and retrieving
- * the file extension associated with the formatter.
- * <p>
- * Implementations should define how to process and transform metadata streams into
- * the desired output format.
- *
- * @author Srishti Singh
- * @since 23 march 2026
+ * Defines the contract for formatting metadata into specific output formats.
+ * Implementations of this interface specify how to transform metadata stored
+ * in a {@link Document} into a desired format and write it to an {@link OutputStream}.
+ * Additionally, the file extension corresponding to the specific output format
+ * can be retrieved using this interface.
  */
 public interface DataFormatter {
 
-    InputStream format(InputStream metadataStream);
+    void write(Document metadata, OutputStream zipOut) throws EuropeanaApiException;
 
     String getFileExtension();
 }

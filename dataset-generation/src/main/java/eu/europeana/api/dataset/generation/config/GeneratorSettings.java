@@ -4,8 +4,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 
-import java.util.List;
-
 /**
  * GeneratorSettings is a Spring configuration class responsible for loading
  * application-specific settings from properties files.
@@ -76,6 +74,10 @@ public class GeneratorSettings {
 
     public String getSnapshotFile() {
         return getDatasetsFolder() + snapshotFile;
+    }
+
+    public String getLastHarvestDateFile() {
+        return getDatasetsFolder() + "last-harvest-date.txt";
     }
 
     public String getSlackWebhook() {

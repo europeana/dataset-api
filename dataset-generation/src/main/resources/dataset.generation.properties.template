@@ -12,9 +12,4 @@ keycloak.token.grant.params =
 dataset.files.location=
 snapshot.file=datasets_snapshot.txt
 
-# Mongo connection settings
-mongo.connectionUrl=
-mongo.dataset.database=
-mongo.max.idle.time.millisec=
-
 slack.webhook=

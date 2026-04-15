@@ -1,11 +1,10 @@
 package eu.europeana.api.dataset.generation.service;
 
-import eu.europeana.api.dataset.generation.config.batch.DatasetBatchConfig;
 import eu.europeana.api.dataset.generation.model.JobParameter;
-import eu.europeana.api.dataset.generation.utils.ModelConstants;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.batch.core.JobExecution;
+import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
@@ -14,13 +13,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import javax.annotation.Nullable;
-
 import java.time.Instant;
 import java.util.Date;
-
-import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.DATASET_GENERATION_JOB_FACTORY;
-import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.DATASET_GENERATION_JOB_LAUNCHER;
 
 /**
  * The DatasetGenerationExecutor class is responsible for orchestrating the execution
@@ -31,29 +25,30 @@ import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.DATAS
 @Service
 public class DatasetGenerationExecutor {
 
-    private static final Logger logger = LogManager.getLogger(DatasetGenerationExecutor.class);
+    private static final Logger LOGGER = LogManager.getLogger(DatasetGenerationExecutor.class);
 
-    private final DatasetBatchConfig datasetBatchConfig;
+    private final Job scheduledDatasetJob;
     private final JobLauncher datasetDownloadJobLauncher;
 
     public DatasetGenerationExecutor(
-            @Qualifier(DATASET_GENERATION_JOB_FACTORY) DatasetBatchConfig datasetBatchConfig,
-            @Qualifier(DATASET_GENERATION_JOB_LAUNCHER) JobLauncher datasetDownloadJobLauncher) {
-        this.datasetBatchConfig         = datasetBatchConfig;
+            @Qualifier("createScheduledDownloadJob")Job scheduledDatasetJob,
+            JobLauncher datasetDownloadJobLauncher) {
+        this.scheduledDatasetJob         = scheduledDatasetJob;
         this.datasetDownloadJobLauncher = datasetDownloadJobLauncher;
     }
 
-    /** Periodically run scheduled datasets (in one run). */
+
     @Async
     public void runScheduleDatasets() {
-        logger.info("Running scheduled datasets....");
+        LOGGER.info("Running scheduled datasets....");
+
         try {
             datasetDownloadJobLauncher.run(
-                    datasetBatchConfig.createScheduledDownloadJob(),
-                    createJobParameters(null, Date.from(Instant.now())));
-
+                    scheduledDatasetJob,
+                    createJobParameters(null, Date.from(Instant.now()))
+            );
         } catch (Exception e) {
-            logger.warn("Error running scheduled datasets", e);
+            LOGGER.warn("Error running scheduled datasets", e);
         }
     }
 

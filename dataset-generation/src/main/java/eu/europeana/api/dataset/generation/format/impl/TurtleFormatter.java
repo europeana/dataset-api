@@ -4,42 +4,74 @@ import eu.europeana.api.commons_sb3.definitions.utils.TurtleRecordWriter;
 
 import java.io.*;
 
+import eu.europeana.api.commons_sb3.error.EuropeanaApiException;
+import eu.europeana.api.dataset.generation.exception.DataFormatterException;
 import eu.europeana.api.dataset.generation.format.DataFormatter;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdfxml.xmlinput1.DOM2Model;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.w3c.dom.Document;
+import org.xml.sax.SAXParseException;
+
+import javax.xml.transform.TransformerFactory;
 
 /**
- * A formatter that converts metadata streams into Turtle RDF format.
- * This class implements the DataFormatter interface to process metadata
- * streams and generate outputs in the Turtle (.ttl) format.
+ * A formatter that converts metadata in the form of a DOM {@link Document} into Turtle (.ttl) format.
  *
- * The formatter reads RDF/XML data from the provided InputStream, converts it
- * into a Jena Model, and writes the model in Turtle format to an OutputStream.
- * The resulting output is then converted back into an InputStream for further use.
+ * Responsibilities:
+ * - Transforms a DOM {@link Document} into a Jena {@link Model}.
+ * - Writes the Jena {@link Model} to a {@link ByteArrayOutputStream} in Turtle format.
+ * - Streams the resulting Turtle data to the provided {@link OutputStream}.
+ * - Provides the standard file extension for Turtle files (".ttl").
  *
- * Any errors that occur during the formatting process are logged.
+ * Errors:
+ * - Errors during the transformation of the {@link Document} into a {@link Model} are wrapped
+ *   in a {@link DataFormatterException}.
+ * - I/O errors encountered while writing the Turtle data to the {@link OutputStream} are
+ *   also wrapped in a {@link DataFormatterException} for consistent error handling.
+ *
+ * Implements {@link DataFormatter}.
  */
-public class TurtleFormatter implements DataFormatter {
+public record TurtleFormatter(TransformerFactory transformerFactory) implements DataFormatter {
 
     private static final Logger LOG = LogManager.getLogger(TurtleFormatter.class);
 
+    // TODO find a solution to not close zip
     @Override
-    public InputStream format(InputStream metadataStream) {
-        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-             TurtleRecordWriter writer = new TurtleRecordWriter(outputStream)) {
+    public void write(Document metadata, OutputStream zipOut) throws EuropeanaApiException {
+        OutputStream safeOut = new FilterOutputStream(zipOut) {
+            @Override
+            public void close() throws IOException {
+                flush(); // prevent closing zipOut
+            }
+        };
 
-            Model modelResult = ModelFactory
-                    .createDefaultModel()
-                    .read(metadataStream, "", "RDF/XML");
-
-            writer.write(modelResult);
-            return new ByteArrayInputStream(outputStream.toByteArray());
+        try (TurtleRecordWriter writer = new TurtleRecordWriter(safeOut)) {
+            writer.write(toModel(metadata));
         } catch (IOException e) {
-            LOG.error("Error generating turtle output", e);
+            throw new DataFormatterException("Error writing the metadata in turtle format " + e.getMessage(), e);
         }
-        return null;
+    }
+
+    /**
+     * Converts a {@link Document} into a Jena {@link Model}.
+     * The method processes the provided DOM {@link Document} using the DOM2Model utility to create and populate a Jena {@link Model}.
+     *
+     * @param doc The {@link Document} to be converted into a Jena {@link Model}.
+     * @return A {@link Model} representation of the input {@link Document}.
+     * @throws DataFormatterException If an error occurs during the transformation of the {@link Document} into a {@link Model}.
+     */
+    public static Model toModel(Document doc) throws DataFormatterException {
+        try {
+            Model m = ModelFactory.createDefaultModel();
+            DOM2Model dom2Model = DOM2Model.createD2M("", m);
+            dom2Model.load(doc);
+            return m;
+        } catch (SAXParseException e) {
+            throw new DataFormatterException("Error converting document to Jena model - " + e.getMessage(), e);
+        }
     }
 
     @Override

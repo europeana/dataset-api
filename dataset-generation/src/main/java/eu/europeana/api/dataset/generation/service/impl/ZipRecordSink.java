@@ -1,5 +1,6 @@
 package eu.europeana.api.dataset.generation.service.impl;
 
+import eu.europeana.api.commons_sb3.error.EuropeanaApiException;
 import eu.europeana.api.dataset.generation.format.DataFormatter;
 import eu.europeana.api.dataset.generation.service.RecordSink;
 import eu.europeana.api.dataset.oaipmh.model.Record;
@@ -37,20 +38,21 @@ public class ZipRecordSink implements RecordSink, Closeable {
         this.datasetId = datasetId;
         this.zipOut = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(outputFile)));
         this.formatter = formatter;
-
     }
 
     @Override
-    public void consume(Record record) throws IOException {
+    public void consume(Record record) throws EuropeanaApiException {
         String recordId = record.getIdentifier();
-        String entryName = (recordId != null ? getDirectoryName(recordId) : "record_" + counter) + formatter.getFileExtension();
-
-        ZipEntry entry = new ZipEntry(entryName);
-        zipOut.putNextEntry(entry);
-        zipOut.write(formatter.format(record.metadataStream).readAllBytes());
-        zipOut.closeEntry();
-
-        counter++;
+        try {
+            String entryName = (recordId != null ? getDirectoryName(recordId) : "record_" + counter) + formatter.getFileExtension();
+            ZipEntry entry = new ZipEntry(entryName);
+            zipOut.putNextEntry(entry);
+            formatter.write(record.metadata, zipOut);
+            zipOut.closeEntry();
+            counter++;
+        } catch (IOException e) {
+            throw new EuropeanaApiException("Error writing record " + recordId + " to zip file - "+ e.getMessage(), e);
+        }
 
         if (LOG.isDebugEnabled()) {
             if (counter % 1000 == 0) {

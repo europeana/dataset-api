@@ -16,9 +16,6 @@ import java.util.Date;
 public class DatasetReportTasklet implements Tasklet {
 
     @Resource
-    ScheduleDatasetService scheduleDatasetService;
-
-    @Resource
     SlackConnection slackConnection;
 
     @Override
@@ -36,7 +33,7 @@ public class DatasetReportTasklet implements Tasklet {
      * - Deletes processed datasets from the database to free resources and maintain clean state.
      */
     private void updateDatabase() {
-        scheduleDatasetService.updateLastHarvestDate(new Date());
-        scheduleDatasetService.cleanUpAfterProcessing();
+//        scheduleDatasetService.updateLastHarvestDate(new Date()); // todo update te file with date
+//        scheduleDatasetService.cleanUpAfterProcessing(); // TODO check if this is needed anymore, as it's in memory db
     }
 }
