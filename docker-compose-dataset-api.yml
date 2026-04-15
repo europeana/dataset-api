@@ -3,7 +3,7 @@ services:
     build: .
     container_name: dataset-api
     ports:
-      - "80:8080"
+      - "8081:8080"
     pull_policy: always
     environment:
       - SERVER_PORT=8080
