@@ -39,7 +39,7 @@ public class DatasetGenerationExecutor {
 
 
     @Async
-    public void runScheduleDatasets() {
+    public void runScheduledDatasets() {
         LOGGER.info("Running scheduled datasets....");
 
         try {

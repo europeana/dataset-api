@@ -15,5 +15,4 @@ import java.util.List;
 public interface ScheduledDatasetRepository extends JpaRepository<ScheduledDataset, String> {
 
     List<ScheduledDataset> findAllById(Iterable<String> ids);
-
 }

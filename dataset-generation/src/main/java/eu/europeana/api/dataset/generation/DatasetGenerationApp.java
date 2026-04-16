@@ -53,7 +53,20 @@ public class DatasetGenerationApp {
     @Resource
     GeneratorSettings settings;
 
-    // Call external service → map response → store into H2 → use in Spring Batch
+    /**
+     * Starts the application workflow for dataset generation. This method is triggered upon the application
+     * being fully initialized and ready to process.
+     *
+     * The workflow consists of the following steps: Call external service → map response → store into H2 → use in Spring Batch
+     *
+     * 1. Retrieves the last harvest date from a specified file to determine the datasets to be processed.
+     *    - If no last harvest date is found, logs a message indicating that all datasets will be harvested.
+     * 2. Reads datasets from the Search API based on the retrieved last harvest date.
+     * 3. Maps the response and stores into H2 (in memory DB)
+     * 4. Executes the scheduled dataset processing using the dataset generation executor.
+     *
+     * @throws Exception if any error occurs during the workflow execution.
+     */
    // @Override
     @EventListener(ApplicationReadyEvent.class)
     public void start() throws Exception {
@@ -68,7 +81,7 @@ public class DatasetGenerationApp {
             scheduleDatasetService.scheduleDatasetsForDownload(datasetToSchedule);
         }
 
-        datasetGenerationExecutor.runScheduleDatasets();
+        datasetGenerationExecutor.runScheduledDatasets();
     }
 
 
@@ -93,6 +106,15 @@ public class DatasetGenerationApp {
         System.exit(0);
     }
 
+    /**
+     * Retrieves the last harvest date from the specified file. The file is expected to contain
+     * a single ISO-8601 formatted date string. If the file cannot be read or contains invalid
+     * data, an error is logged and null is returned.
+     *
+     * @param filePath the path to the file containing the last harvest date.
+     * @return the last harvest date as a {@link Date} object if successfully parsed, or null
+     *         if an error occurs or the date is invalid.
+     */
     public static Date getLastHarvestDate(String filePath)  {
         try {
             String content = Files.readString(Path.of(filePath)).trim();

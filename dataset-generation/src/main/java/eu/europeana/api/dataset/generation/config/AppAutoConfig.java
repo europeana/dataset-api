@@ -12,21 +12,18 @@ import eu.europeana.api.dataset.generation.format.impl.XMLFormatter;
 import eu.europeana.api.dataset.generation.listener.ScheduledDatasetItemListener;
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
 import eu.europeana.api.dataset.generation.processor.DatasetDeletionTasklet;
+import eu.europeana.api.dataset.generation.reader.ScheduledDatasetDbReaderJdbc;
 import eu.europeana.api.dataset.generation.reader.SearchApiDatasetReader;
-import eu.europeana.api.dataset.generation.reader.ScheduledDatasetDbReader;
 import eu.europeana.api.dataset.generation.service.ScheduleDatasetService;
 import eu.europeana.api.dataset.oaipmh.OAIPMHServiceClient;
 import jakarta.annotation.Resource;
-import jakarta.persistence.EntityManagerFactory;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.batch.core.configuration.annotation.StepScope;
-import org.springframework.batch.item.ItemStreamReader;
-import org.springframework.batch.item.database.JpaPagingItemReader;
-import org.springframework.batch.item.support.SynchronizedItemStreamReader;
-import org.springframework.batch.support.transaction.ResourcelessTransactionManager;
+import org.springframework.batch.item.database.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,11 +31,13 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.jdbc.datasource.init.DataSourceInitializer;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
+import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
 import javax.xml.transform.TransformerFactory;
+import java.time.Instant;
 import java.util.Map;
 
 import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.*;
@@ -104,7 +103,6 @@ public class AppAutoConfig {
         taskExecutor.setCorePoolSize(settings.getBatchUpdatesCorePoolSize());
         taskExecutor.setMaxPoolSize(settings.getBatchUpdatesMaxPoolSize());
         taskExecutor.setQueueCapacity(settings.getBatchUpdatesQueueSize());
-
         return taskExecutor;
     }
 
@@ -121,60 +119,20 @@ public class AppAutoConfig {
         return new ScheduledDatasetItemListener(applicationContext.getBean(ScheduleDatasetService.class));
     }
 
-    // todo update the query
-//    @StepScope
+    @StepScope
     @Bean(name = SCHEDULED_DATASET_READER)
-    public JpaPagingItemReader<ScheduledDataset> reader(EntityManagerFactory emf) {
+    public JdbcPagingItemReader<ScheduledDataset> reader(DataSource dataSource,
+            @Value("#{jobParameters[currentStartTime]}") Instant currentStartTime) {
 
-        ScheduledDatasetDbReader reader = new ScheduledDatasetDbReader(settings.getBatchChunkSize(), emf, """
-        SELECT s
-        FROM ScheduledDataset s
-       ORDER BY s.totalSize DESC, s.created ASC, s.id ASC
-    """);
-
-//        reader.setEntityManagerFactory(emf);
-//
-//        reader.setQueryString("""
-//        SELECT s
-//        FROM ScheduledDataset s
-//       ORDER BY s.totalSize DESC, s.created ASC, s.id ASC
-//    """);
-//
-//        reader.setPageSize(settings.getBatchChunkSize()); // chunk size match recommended
-
-        return reader;
-//        return  threadSafeReader(reader);
-    }
-
-
-//    @Bean(name = SCHEDULED_DATASET_READER)
-//    @StepScope
-//    public SynchronizedItemStreamReader<ScheduledDataset> scheduledTaskReader(
-//            EntityManagerFactory emf,
-//            @Value("#{jobParameters[currentStartTime]}") Date currentStartTime) {
-//        ScheduledDatasetDbReader reader =
-//                new ScheduledDatasetDbReader(
-//                        settings.getBatchChunkSize(),
-//                        """
-//        SELECT s
-//        FROM ScheduledDataset s
-//        ORDER BY s.totalSize DESC, s.created ASC
-//    """
-//                        );
-//        return threadSafeReader(reader);
-//    }
-//
-
-    /** Makes ItemReader thread-safe */
-    private <T> SynchronizedItemStreamReader<T> threadSafeReader(ItemStreamReader<T> reader) {
-        final SynchronizedItemStreamReader<T> synchronizedItemStreamReader = new SynchronizedItemStreamReader<>();
-        synchronizedItemStreamReader.setDelegate(reader);
-        return synchronizedItemStreamReader;
+       return new ScheduledDatasetDbReaderJdbc(
+                settings.getBatchChunkSize(),
+                dataSource, currentStartTime
+                );
     }
 
     @Bean
     public PlatformTransactionManager transactionManager() {
-        return new  ResourcelessTransactionManager();
+        return new JpaTransactionManager();
     }
 
     @Bean

@@ -19,7 +19,7 @@ import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.core.step.skip.SkipPolicy;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.database.JpaPagingItemReader;
+import org.springframework.batch.item.database.JdbcPagingItemReader;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.*;
@@ -93,7 +93,7 @@ public class DatasetBatchConfig extends DefaultBatchConfiguration {
                 .faultTolerant()
                 .skipPolicy(NOOP_SKIP_POLICY)
                 .taskExecutor(getCustomTaskExecutor())
-                .throttleLimit(settings.getBatchUpdatesThrottleLimit())
+               // .throttleLimit(settings.getBatchUpdatesThrottleLimit())
                 .build();
 
     }
@@ -136,8 +136,8 @@ public class DatasetBatchConfig extends DefaultBatchConfiguration {
                 .build();
     }
 
-    private JpaPagingItemReader<ScheduledDataset> getReader() {
-        return (JpaPagingItemReader<ScheduledDataset>) appContext.getBean(SCHEDULED_DATASET_READER);
+    private JdbcPagingItemReader<ScheduledDataset> getReader() {
+        return (JdbcPagingItemReader<ScheduledDataset>) appContext.getBean(SCHEDULED_DATASET_READER);
     }
 
     private ItemProcessor<ScheduledDataset, ScheduledDataset> getProcessor() {
