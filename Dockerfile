@@ -9,6 +9,6 @@ ADD https://repo1.maven.org/maven2/co/elastic/apm/elastic-apm-agent/$ELASTIC_APM
 
 COPY dataset-serving/target/dataset-api ./ROOT/
 
-#RUN mkdir -p /opt/app/storage/XML
+RUN mkdir -p /opt/app/storage
 
 EXPOSE 8080

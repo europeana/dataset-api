@@ -15,6 +15,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.commons.io.FileUtils;
@@ -28,12 +29,17 @@ import org.springframework.http.HttpRange;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+/**
+ * Controller class for the endpoints exposed by dataset-serving module
+ */
 @RestController
 public class DatasetServingController {
 
@@ -43,11 +49,20 @@ public class DatasetServingController {
 
     private DatasetServingConfig config;
 
+    /**
+     * Constructs a new {@code DatasetServingController}
+     * @param authService  service used to handle authorization
+     * @param config provides settings for dataset serving
+     */
     public DatasetServingController(DatasetAuthService authService,DatasetServingConfig config){
         this.authService= authService;
         this.config = config;
     }
 
+    /**
+     * Fetches the downloadable file details grouped by their respective dataset ID     *
+     * @return map containing the datasetID and respective file details list
+     */
     @GetMapping(value ={"/dataset/"})
     public ResponseEntity<Map<String, List<FileDetails>>> getFileList(){
 
@@ -113,7 +128,7 @@ public class DatasetServingController {
                 type,
                 FileUtils.byteCountToDisplaySize(fileAttr.size()),
                 fileAttr.lastModifiedTime().toInstant().toString(),
-                "/dataset/"+baseName+"."+type);
+                "/dataset/"+baseName+"?format="+type.toLowerCase(Locale.ENGLISH));
 
 
         } catch (IOException e) {
@@ -124,11 +139,9 @@ public class DatasetServingController {
     }
 
 
-
-
-    @GetMapping("/dataset/{datasetId}.{extension}")
+    @GetMapping("/dataset/{datasetId}")
     public ResponseEntity<StreamingResponseBody> getFileResource(@PathVariable("datasetId") String datasetID,
-        @PathVariable("extension") String fileExtension,
+        @RequestParam(name = "format",defaultValue ="XML",required = false) String fileExtension,
         @RequestHeader(value = "Range", required = false) String rangeHeader,
         HttpServletRequest request) {
         try {
