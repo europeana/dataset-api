@@ -37,6 +37,8 @@ public class OaiRawStreamingParser {
         String resumptionToken = null;
 
         XMLInputFactory inputFactory = XMLInputFactory.newInstance();
+        inputFactory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+
         XMLEventReader reader = inputFactory.createXMLEventReader(oaiStream);
 
         String currentIdentifier = null;

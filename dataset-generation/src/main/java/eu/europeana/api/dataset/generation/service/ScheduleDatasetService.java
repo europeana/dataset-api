@@ -3,7 +3,6 @@ package eu.europeana.api.dataset.generation.service;
 import eu.europeana.api.dataset.generation.model.Dataset;
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
 import eu.europeana.api.dataset.generation.repository.ScheduledDatasetRepository;
-import jakarta.transaction.Transactional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,8 +43,11 @@ public class ScheduleDatasetService {
      *                         the details of datasets to be scheduled for download.
      *                         If the list is null or empty, the method does nothing.
      */
-//    @Transactional
     public void scheduleDatasetsForDownload(List<Dataset> datasetsToUpdate) {
+        if (datasetsToUpdate == null || datasetsToUpdate.isEmpty()) {
+            LOGGER.info("No datasets will be scheduled for download .... !!!");
+            return;
+        }
         // Fetch all existing records in ONE query
         List<ScheduledDataset> existingList = findAll(datasetsToUpdate);
         Map<String, ScheduledDataset> existingMap = existingList.stream()
@@ -77,7 +79,7 @@ public class ScheduleDatasetService {
         // 4. Single batch write to DB
         List<ScheduledDataset> data = repository.saveAllAndFlush(toSave);
         LOGGER.info("Scheduled {} datasets for download", toSave.size());
-        LOGGER.info("Scheduled datasets - {}",data.stream().map(ScheduledDataset::getDatasetId).toList());
+        LOGGER.info("Scheduled datasets - {}", data.stream().map(ScheduledDataset::getDatasetId).toList());
     }
 
     /**

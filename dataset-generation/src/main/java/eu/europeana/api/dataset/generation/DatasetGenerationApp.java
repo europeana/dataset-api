@@ -10,13 +10,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.event.EventListener;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -32,12 +30,7 @@ import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.BEAN_
 @SpringBootApplication(scanBasePackages = {"eu.europeana.api.dataset.generation"}, exclude = {
         SecurityAutoConfiguration.class,    // Remove these exclusions to re-enable security
 })
-@EnableJpaRepositories(basePackages =
-        "eu.europeana.api.dataset.generation.repository")
-@EntityScan(basePackages =
-        "eu.europeana.api.dataset.generation")
 public class DatasetGenerationApp {
-        //implements CommandLineRunner {
 
     private static final Logger LOG = LogManager.getLogger(DatasetGenerationApp.class);
 
@@ -67,7 +60,6 @@ public class DatasetGenerationApp {
      *
      * @throws Exception if any error occurs during the workflow execution.
      */
-   // @Override
     @EventListener(ApplicationReadyEvent.class)
     public void start() throws Exception {
         LOG.info("Starting Dataset Generation App ...");
@@ -77,9 +69,8 @@ public class DatasetGenerationApp {
             LOG.info("No previous harvest date found, All the datasets will be harvested .....");
         }
         List<Dataset> datasetToSchedule = searchApiDatasetReader.getDataset(lastHarvestDate);
-        if (!datasetToSchedule.isEmpty()) {
-            scheduleDatasetService.scheduleDatasetsForDownload(datasetToSchedule);
-        }
+
+        scheduleDatasetService.scheduleDatasetsForDownload(datasetToSchedule);
 
         datasetGenerationExecutor.runScheduledDatasets();
     }
