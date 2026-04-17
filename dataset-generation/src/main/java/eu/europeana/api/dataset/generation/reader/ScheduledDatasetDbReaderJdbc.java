@@ -1,18 +1,18 @@
 package eu.europeana.api.dataset.generation.reader;
 
-import eu.europeana.api.dataset.generation.model.JobParameter;
+import eu.europeana.api.dataset.generation.exception.DatasetGenerationException;
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
+import eu.europeana.api.dataset.generation.utils.ModelConstants;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.batch.item.database.JdbcPagingItemReader;
 import org.springframework.batch.item.database.Order;
 import org.springframework.batch.item.database.PagingQueryProvider;
 import org.springframework.batch.item.database.support.SqlPagingQueryProviderFactoryBean;
-import org.springframework.jdbc.core.BeanPropertyRowMapper;
 
 import javax.sql.DataSource;
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -48,19 +48,6 @@ public class ScheduledDatasetDbReaderJdbc extends JdbcPagingItemReader<Scheduled
     public ScheduledDatasetDbReaderJdbc(int pageSize, DataSource dataSource, Instant currentStartTime) {
         this.readerPageSize = pageSize;
         this.dataSource = dataSource;
-
-        // set the JDBC setters
-        setDataSource(this.dataSource);
-        // ✅ Correct mapping using aliases
-        setRowMapper(new BeanPropertyRowMapper<>(ScheduledDataset.class));
-        setQueryProvider();
-
-        // ✅ Parameter binding
-        Map<String, Object> params = new HashMap<>();
-        params.put(JobParameter.CURRENT_START_TIME.key(), currentStartTime);
-        setParameterValues(params);
-
-        LOG.info("ScheduledDatasetDbReaderJdbc initialized ..  !!");
     }
 
 
@@ -72,11 +59,12 @@ public class ScheduledDatasetDbReaderJdbc extends JdbcPagingItemReader<Scheduled
      *
      * @throws RuntimeException if an error occurs while creating the query provider.
      */
-    private void setQueryProvider() {
+    @Nullable
+    public void setQueryProvider() throws DatasetGenerationException {
         try {
             setQueryProvider(scheduledDatasetQueryProvider());
         } catch (Exception e) {
-            throw new RuntimeException("Error creating query provider", e);
+            throw new DatasetGenerationException("Error creating query provider - " +e.getMessage(), e);
         }
     }
 
@@ -100,9 +88,9 @@ public class ScheduledDatasetDbReaderJdbc extends JdbcPagingItemReader<Scheduled
         provider.setWhereClause("WHERE has_been_processed = FALSE AND created <= :currentStartTime");
 
         provider.setSortKeys(Map.of(
-                "total_size", Order.DESCENDING,
-                "created", Order.ASCENDING,
-                "dataset_id", Order.ASCENDING   // ✅ PRIMARY KEY = safest tie-breaker
+                ModelConstants.total_size, Order.DESCENDING,
+                ModelConstants.created, Order.ASCENDING,
+                ModelConstants.dataset_id, Order.ASCENDING   // ✅ PRIMARY KEY = safest tie-breaker
         ));
 
         return provider.getObject();

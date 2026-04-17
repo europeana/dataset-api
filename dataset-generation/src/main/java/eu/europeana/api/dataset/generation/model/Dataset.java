@@ -13,13 +13,19 @@ public class Dataset {
 
     private long datasetSize;
 
-    public String getDatasetId() {
-        return datasetId;
-    }
-
+    /**
+     * Constructs a new Dataset with the specified identifier and size.
+     *
+     * @param datasetId the unique identifier for the dataset
+     * @param datasetSize the size of the dataset
+     */
     public Dataset(String datasetId, long datasetSize) {
         this.datasetId = datasetId;
         this.datasetSize = datasetSize;
+    }
+
+    public String getDatasetId() {
+        return datasetId;
     }
 
     public void setDatasetId(String datasetId) {

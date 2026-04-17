@@ -27,7 +27,7 @@ import java.net.URISyntaxException;
 import java.util.*;
 
 import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.SEARCH_RECORD_AUTH_HANDLER;
-
+import static  eu.europeana.api.dataset.generation.utils.ModelConstants.facets;
 /**
  * This class is responsible for reading datasets from the search API.
  * @author Srishti Singh
@@ -58,15 +58,15 @@ public class SearchApiDatasetReader {
         try (CloseableHttpResponse response = searchApiClient.get(
                 buildSearchApiUrl(timestampUpdate),
                 Collections.singletonMap(HttpHeaders.ACCEPT, "application/json"),
-                srApiAuthHandler);) {
+                srApiAuthHandler)) {
 
             List<Dataset> datasets = new ArrayList<>();
 
             // process facet map
             if (response.getCode() == HttpStatus.SC_OK) {
                 JSONObject jsonObject = new JSONObject(EntityUtils.toString(response.getEntity()));
-                if (jsonObject.has("facets")) {
-                    JSONArray fields = jsonObject.getJSONArray("facets").getJSONObject(0).getJSONArray("fields");
+                if (jsonObject.has(facets)) {
+                    JSONArray fields = jsonObject.getJSONArray(facets).getJSONObject(0).getJSONArray("fields");
                     for (int i = 0; i < fields.length(); i++) {
                         JSONObject field = fields.getJSONObject(i);
                         //set names from solr are in the form of <setId>_<setName> so we split
@@ -102,7 +102,7 @@ public class SearchApiDatasetReader {
         try {
             URIBuilder uriBuilder = new URIBuilder(settings.getSearchApiUrl())
                     .addParameter("query", "*")
-                    .addParameter("profile", "facets")
+                    .addParameter("profile", facets)
                     .addParameter("facet", "edm_datasetName")
                     .addParameter("rows", "0")
                     .addParameter("f.edm_datasetName.facet.limit", "5000");

@@ -11,6 +11,11 @@ public enum JobParameter {
     this.key = key;
   }
 
+  /**
+   * Retrieves the key associated with the job parameter.
+   *
+   * @return the key representing the job parameter
+   */
   public String key() {
     return key;
   }

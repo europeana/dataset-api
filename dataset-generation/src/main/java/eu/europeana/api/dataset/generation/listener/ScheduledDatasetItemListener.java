@@ -18,13 +18,12 @@ public class ScheduledDatasetItemListener extends ItemListenerSupport<ScheduledD
 
     private final ScheduleDatasetService scheduleDatasetService;
 
+    /**
+     * Constructor for {@link ScheduledDatasetItemListener}.
+     * @param scheduleDatasetService
+     */
     public ScheduledDatasetItemListener(ScheduleDatasetService scheduleDatasetService) {
         this.scheduleDatasetService = scheduleDatasetService;
-    }
-
-    @Override
-    public void afterRead(ScheduledDataset item) {
-        super.afterRead(item);
     }
 
     @Override

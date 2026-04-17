@@ -4,20 +4,21 @@ import eu.europeana.api.commons_sb3.error.EuropeanaApiException;
 import org.springframework.http.HttpStatus;
 
 /**
- * A custom exception that represents errors encountered during the data formatting process.
+ * A custom exception that represents errors encountered during the dataset generation process.
  *
- * This exception serves as a specific type of {@link EuropeanaApiException} used to indicate
- * issues related to formatting metadata in different formats (e.g., XML, Turtle). It is typically
- * thrown when an error occurs during the transformation or output writing process.
+ * This exception extends {@link EuropeanaApiException} and is used to capture
+ * application-specific issues that arise while generating datasets. It provides a structured
+ * way to handle errors related to dataset creation, such as failures in data processing
+ * or resource generation activities.
  */
-public class DataFormatterException extends EuropeanaApiException {
+public class DatasetGenerationException extends EuropeanaApiException {
     private static final long serialVersionUID = 1L;
 
-    public DataFormatterException(String msg) {
+    public DatasetGenerationException(String msg) {
         super(msg);
     }
 
-    public DataFormatterException(String msg, Throwable cause) {
+    public DatasetGenerationException(String msg, Throwable cause) {
         super(msg, cause);
     }
 

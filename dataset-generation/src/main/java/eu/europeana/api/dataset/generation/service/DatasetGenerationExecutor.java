@@ -30,6 +30,12 @@ public class DatasetGenerationExecutor {
     private final Job scheduledDatasetJob;
     private final JobLauncher datasetDownloadJobLauncher;
 
+    /**
+     * Constructor for the DatasetGenerationExecutor class
+     *
+     * @param scheduledDatasetJob the Spring Batch job representing the scheduled dataset generation process
+     * @param datasetDownloadJobLauncher the JobLauncher instance used to trigger Spring Batch jobs
+     */
     public DatasetGenerationExecutor(
             @Qualifier("createScheduledDownloadJob")Job scheduledDatasetJob,
             JobLauncher datasetDownloadJobLauncher) {
@@ -38,6 +44,13 @@ public class DatasetGenerationExecutor {
     }
 
 
+    /**
+     * Executes the scheduled dataset generation job in an asynchronous manner.
+     * Logs the initiation of the job and handles exceptions that may occur during execution.
+     *
+     * The job execution uses {@link #createJobParameters(String, Date)} to construct the necessary
+     * parameters, such as the current timestamp, which are passed to the Spring Batch JobLauncher for execution.
+     */
     @Async
     public void runScheduledDatasets() {
         LOGGER.info("Running scheduled datasets....");
@@ -48,7 +61,7 @@ public class DatasetGenerationExecutor {
                     createJobParameters(null, Date.from(Instant.now()))
             );
         } catch (Exception e) {
-            LOGGER.warn("Error running scheduled datasets", e);
+            LOGGER.error("Error running scheduled datasets", e);
         }
     }
 

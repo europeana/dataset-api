@@ -2,8 +2,6 @@ package eu.europeana.api.dataset.generation.processor;
 
 import eu.europeana.api.commons_sb3.slack.SlackConnection;
 import eu.europeana.api.dataset.generation.config.GeneratorSettings;
-import eu.europeana.api.dataset.generation.service.ListRecordService;
-import eu.europeana.api.dataset.generation.service.ScheduleDatasetService;
 import jakarta.annotation.Resource;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,8 +18,16 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.Date;
 
+/**
+ * The DatasetReportTasklet class is a Spring Batch Tasklet implementation that performs two main tasks:
+ * - Updates the last harvest date to a file in the specified location.
+ * - Sends a message to a configured Slack channel indicating the successful completion of dataset generation.
+ *
+ * Key behaviors:
+ * - Formats timestamps using the "yyyy-MM-dd'T'HH:mm:ss'Z'" format and the system's default time zone.
+ * - Logs information and errors using the Apache Log4j logging framework.
+ */
 @Service
 public class DatasetReportTasklet implements Tasklet {
 

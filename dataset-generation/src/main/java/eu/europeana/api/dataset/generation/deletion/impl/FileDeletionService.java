@@ -26,6 +26,7 @@ public record FileDeletionService(String storagePath) implements DeletionService
 
     private static final Logger LOG = LogManager.getLogger(FileDeletionService.class);
 
+    @SuppressWarnings("java:S109")
     @Override
     public void deleteFiles(Set<String> datasetsForRemoval) throws IOException {
         if (datasetsForRemoval.isEmpty()) {

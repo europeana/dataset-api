@@ -19,6 +19,7 @@ import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * The DatasetDeletionTasklet class is responsible for performing a cleanup task
@@ -40,6 +41,18 @@ public class DatasetDeletionTasklet implements Tasklet {
 
     private final DeletionService deletionService;
 
+    /**
+     * Constructs a new instance of the DatasetDeletionTasklet.
+     *
+     * @param snapshotFilePath the file path where the snapshot of dataset identifiers
+     *                         is stored. This file is used to determine which datasets
+     *                         need to be deleted.
+     * @param searchApiDatasetReader an instance of SearchApiDatasetReader, which is used
+     *                                to retrieve the current datasets available through the
+     *                                search API.
+     * @param deletionService an instance of DeletionService, which handles the deletion
+     *                        of files associated with datasets that need to be removed.
+     */
     public DatasetDeletionTasklet(String snapshotFilePath, SearchApiDatasetReader searchApiDatasetReader, DeletionService deletionService) {
         this.snapshotFilePath = snapshotFilePath;
         this.searchApiDatasetReader = searchApiDatasetReader;
@@ -97,7 +110,9 @@ public class DatasetDeletionTasklet implements Tasklet {
         if (!Files.exists(path)) {
             return new HashSet<>();
         }
-        return Files.lines(path).collect(Collectors.toSet());
+        try (Stream<String> lines = Files.lines(path)) {
+            return lines.collect(Collectors.toSet());
+        }
     }
 
     /**

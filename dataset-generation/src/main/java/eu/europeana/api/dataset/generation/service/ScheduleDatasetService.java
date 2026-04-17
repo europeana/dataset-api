@@ -30,6 +30,10 @@ public class ScheduleDatasetService {
 
     private final ScheduledDatasetRepository repository;
 
+    /**
+     * Constructor for the ScheduleDatasetService class.
+     * @param repository the repository for accessing scheduled dataset data
+     */
     @Autowired
     public ScheduleDatasetService(ScheduledDatasetRepository repository) {
         this.repository = repository;
@@ -99,6 +103,13 @@ public class ScheduleDatasetService {
        return repository.findAllById(ids);
     }
 
+    /**
+     * Marks the provided list of {@link ScheduledDataset} objects as processed by updating
+     * their `hasBeenProcessed` status to true in the database.
+     *
+     * @param datasets A list of {@link ScheduledDataset} objects to be marked as processed.
+     *                 Each dataset in the list should already exist in the repository.
+     */
     public void markDatasetAsProcessed(List<ScheduledDataset> datasets) {
         List<ScheduledDataset> existingDatasets = repository.findAllById(datasets.stream().map(ScheduledDataset::getDatasetId).toList());
 
@@ -108,6 +119,7 @@ public class ScheduleDatasetService {
             dataset.setHasBeenProcessed(true);
             toSave.add(dataset);
         }
-        repository.saveAll(toSave);
+        List<ScheduledDataset> saved = repository.saveAllAndFlush(toSave);
+        LOGGER.info("Marked {} datasets as processed", saved.size());
     }
 }

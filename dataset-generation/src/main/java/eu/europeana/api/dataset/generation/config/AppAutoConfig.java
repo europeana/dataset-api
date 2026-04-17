@@ -4,12 +4,15 @@ import eu.europeana.api.commons_sb3.auth.AuthenticationBuilder;
 import eu.europeana.api.commons_sb3.auth.AuthenticationConfig;
 import eu.europeana.api.commons_sb3.auth.AuthenticationHandler;
 import eu.europeana.api.commons_sb3.definitions.format.RdfFormat;
+import eu.europeana.api.commons_sb3.error.EuropeanaApiException;
 import eu.europeana.api.commons_sb3.slack.SlackConnection;
 import eu.europeana.api.dataset.generation.deletion.impl.FileDeletionService;
+import eu.europeana.api.dataset.generation.exception.DatasetGenerationException;
 import eu.europeana.api.dataset.generation.format.DataFormatter;
 import eu.europeana.api.dataset.generation.format.impl.TurtleFormatter;
 import eu.europeana.api.dataset.generation.format.impl.XMLFormatter;
 import eu.europeana.api.dataset.generation.listener.ScheduledDatasetItemListener;
+import eu.europeana.api.dataset.generation.model.JobParameter;
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
 import eu.europeana.api.dataset.generation.processor.DatasetDeletionTasklet;
 import eu.europeana.api.dataset.generation.reader.ScheduledDatasetDbReaderJdbc;
@@ -29,6 +32,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.datasource.init.DataSourceInitializer;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.orm.jpa.JpaTransactionManager;
@@ -38,6 +42,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import javax.sql.DataSource;
 import javax.xml.transform.TransformerFactory;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 
 import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.*;
@@ -119,17 +124,49 @@ public class AppAutoConfig {
         return new ScheduledDatasetItemListener(applicationContext.getBean(ScheduleDatasetService.class));
     }
 
+    /**
+     * Creates a StepScope bean that provides a {@link JdbcPagingItemReader} for reading
+     * {@link ScheduledDataset} entities from the database in a paginated manner. This method
+     * uses the batch chunk size from the application settings and initializes the reader
+     * with the specified data source and job parameter for the current start time.
+     *
+     * @param dataSource the {@link DataSource} to use for database connections.
+     * @param currentStartTime the current start time for the job, injected from job parameters.
+     * @return a configured {@link JdbcPagingItemReader} for reading {@link ScheduledDataset} records.
+     */
     @StepScope
     @Bean(name = SCHEDULED_DATASET_READER)
     public JdbcPagingItemReader<ScheduledDataset> reader(DataSource dataSource,
-            @Value("#{jobParameters[currentStartTime]}") Instant currentStartTime) {
+            @Value("#{jobParameters[currentStartTime]}") Instant currentStartTime) throws EuropeanaApiException {
 
-       return new ScheduledDatasetDbReaderJdbc(
+       ScheduledDatasetDbReaderJdbc reader =  new ScheduledDatasetDbReaderJdbc(
                 settings.getBatchChunkSize(),
-                dataSource, currentStartTime
-                );
+                dataSource, currentStartTime);
+
+        // set the JDBC setters
+        reader.setDataSource(dataSource);
+        // ✅ Correct mapping using aliases
+        reader.setRowMapper(new BeanPropertyRowMapper<>(ScheduledDataset.class));
+        reader.setQueryProvider();
+
+        // ✅ Parameter binding
+        Map<String, Object> params = new HashMap<>();
+        params.put(JobParameter.CURRENT_START_TIME.key(), currentStartTime);
+        reader.setParameterValues(params);
+
+        LOG.info("ScheduledDatasetDbReaderJdbc initialized ..  !!");
+
+        return  reader;
     }
 
+    /**
+     * Configures and provides a {@link PlatformTransactionManager} bean, which
+     * serves as the central interface for handling transaction management within
+     * the application. This implementation utilizes {@link JpaTransactionManager}
+     * to manage transactions for JPA-based persistence.
+     *
+     * @return a configured {@link PlatformTransactionManager} instance for transaction management
+     */
     @Bean
     public PlatformTransactionManager transactionManager() {
         return new JpaTransactionManager();

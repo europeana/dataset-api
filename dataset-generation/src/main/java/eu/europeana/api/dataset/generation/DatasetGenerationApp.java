@@ -1,5 +1,6 @@
 package eu.europeana.api.dataset.generation;
 
+import eu.europeana.api.commons_sb3.error.EuropeanaApiException;
 import eu.europeana.api.dataset.generation.config.GeneratorSettings;
 import eu.europeana.api.dataset.generation.model.Dataset;
 import eu.europeana.api.dataset.generation.reader.SearchApiDatasetReader;
@@ -61,7 +62,7 @@ public class DatasetGenerationApp {
      * @throws Exception if any error occurs during the workflow execution.
      */
     @EventListener(ApplicationReadyEvent.class)
-    public void start() throws Exception {
+    public void start() throws EuropeanaApiException {
         LOG.info("Starting Dataset Generation App ...");
 
         Date lastHarvestDate = getLastHarvestDate(settings.getLastHarvestDateFile());
@@ -79,6 +80,14 @@ public class DatasetGenerationApp {
     /**
      * Disable web server and run as a stand-alone App for scheduling
      * @param args
+     */
+    /**
+     * The main method serves as the entry point for the application.
+     * It initializes the Spring application context, sets up the non-web application mode,
+     * and triggers the dataset generation application workflow.
+     *
+     * @param args the command-line arguments passed to the application. These arguments can be used
+     *             to customize the application's behavior or configure specific settings.
      */
     public static void main(String[] args) {
         ConfigurableApplicationContext context = new SpringApplicationBuilder(DatasetGenerationApp.class)

@@ -47,7 +47,7 @@ public class DatasetBatchConfig extends DefaultBatchConfiguration {
 
     /** SkipPolicy to ignore all failures when executing jobs, as they can be handled later */
     private static final SkipPolicy NOOP_SKIP_POLICY = (Throwable t, long skipCount) -> true;
-    public static String JOB_DOWNLOAD_SCHEDULED_DATASETS = "download-scheduled-dataset-job";
+    private static final String JOB_DOWNLOAD_SCHEDULED_DATASETS = "download-scheduled-dataset-job";
 
     @Resource
     GeneratorSettings settings;
@@ -64,6 +64,20 @@ public class DatasetBatchConfig extends DefaultBatchConfiguration {
     @Resource
     PlatformTransactionManager transactionManager;
 
+    /**
+     * Creates and configures a Spring Batch {@link Job} to handle the scheduled download,
+     * processing, and management of datasets. This job orchestrates the following steps:
+     *
+     * - {@code datasetGenerationStep}: Processes scheduled datasets by reading, processing,
+     *   and writing data, with fault-tolerant and parallel execution capabilities.
+     * - {@code removeDatasets}: Identifies and deletes outdated datasets no longer in use.
+     * - {@code updateAndSendReport}: Updates the dataset status and sends a corresponding report.
+     *
+     * @param jobRepository the {@link JobRepository} instance required to manage and persist
+     *                      the state of the batch job execution and metadata.
+     * @return a configured {@link Job} that sequentially executes the dataset download,
+     *         removal, and reporting steps.
+     */
     @Bean
     public Job createScheduledDownloadJob(JobRepository jobRepository) {
         return new JobBuilder(JOB_DOWNLOAD_SCHEDULED_DATASETS, jobRepository)
@@ -79,6 +93,7 @@ public class DatasetBatchConfig extends DefaultBatchConfiguration {
      * applying processing logic, and writing the results. It also includes features such as
      * fault tolerance, skipping policies, and parallel task execution to ensure robustness and efficiency.
      *
+     * @param jobRepository the {@link JobRepository} instance used to manage job execution and metadata.
      * @return a configured {@link Step} instance for the dataset generation process,
      *         including reading, processing, writing, and fault tolerance capabilities.
      */
@@ -106,6 +121,7 @@ public class DatasetBatchConfig extends DefaultBatchConfiguration {
      * - Updates the last harvest date to the current date in the database.
      * - Deletes processed datasets to free up resources and maintain state consistency..
      *
+     * @param jobRepository the {@link JobRepository} instance used to manage job execution and metadata.
      * @return a configured {@link Step} instance for updating the dataset status
      *         and sending a report.
      */

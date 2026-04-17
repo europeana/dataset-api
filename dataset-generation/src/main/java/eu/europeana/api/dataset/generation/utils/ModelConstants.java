@@ -7,13 +7,16 @@ package eu.europeana.api.dataset.generation.utils;
  * @author Srishti Singh
  * @since 03 March 2026
  */
+@SuppressWarnings("java:S115")
 public class ModelConstants {
 
-    public static final String datasetId         = "datasetId";
-    public static final String totalSize         = "totalSize";
-    public static final String hasBeenProcessed  = "hasBeenProcessed";
+    public static final String dataset_id         = "dataset_id";
+    public static final String total_size         = "total_size";
+    public static final String has_been_processed  = "has_been_processed";
     public static final String modified          = "modified";
     public static final String created           = "created";
 
-    public static final String lastHarvestDate   = "lastHarvestDate";
+    // sp api
+    public static final String facets           = "facets";
+
 }
