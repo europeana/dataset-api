@@ -3,6 +3,7 @@ package eu.europeana.api.auth;
 import eu.europeana.api.commons_sb3.definitions.oauth.Role;
 import eu.europeana.api.commons_sb3.oauth2.service.authorization.BaseAuthorizationService;
 import eu.europeana.api.config.DatasetServingConfig;
+import jakarta.annotation.Resource;
 import org.springframework.security.oauth2.provider.ClientDetailsService;
 import org.springframework.stereotype.Service;
 
@@ -10,6 +11,10 @@ import org.springframework.stereotype.Service;
 public class DatasetAuthService extends BaseAuthorizationService {
 
     private DatasetServingConfig config;
+
+    @Resource(name = "datasetClientDetailsService")
+    ClientDetailsService clientDetailsService;
+
     public DatasetAuthService(DatasetServingConfig config){
         this.config = config;
 
@@ -26,7 +31,8 @@ public class DatasetAuthService extends BaseAuthorizationService {
 
     @Override
     protected ClientDetailsService getClientDetailsService() {
-        return null;
+
+        return this.clientDetailsService;
     }
     @Override
     protected String getApiName() {

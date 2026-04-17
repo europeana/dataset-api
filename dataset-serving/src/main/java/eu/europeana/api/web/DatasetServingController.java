@@ -228,8 +228,7 @@ public class DatasetServingController {
     }
 
     private void authorizeReadAccess(HttpServletRequest request) throws ApplicationAuthenticationException {
-        if (request.getHeader("Authorization") == null
-            || authService.authorizeReadAccess(request) == null) {
+        if (authService.authorizeReadAccess(request) == null) {
             throw new ApplicationAuthenticationException(ErrorMessage.TOKEN_INVALID_401);
         }
     }
