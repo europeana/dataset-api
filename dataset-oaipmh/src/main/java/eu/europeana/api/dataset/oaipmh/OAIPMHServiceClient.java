@@ -41,8 +41,7 @@ public class OAIPMHServiceClient {
                 return OaiRawStreamingParser.parseOaiResponse(response.getEntity().getContent());
             }
             else { // throw error for all other http status
-                LOG.error("Error getting the response from oai pmh. Response code: {}", response.getCode());
-                throw new OaiPmhClientException("Error getting the response from oai pmh", response.getCode());
+                throw new OaiPmhClientException(response.getCode());
             }
         } catch (IOException | XMLStreamException | ParserConfigurationException e) {
             LOG.error("Exception while getting the response from oai pmh.", e);

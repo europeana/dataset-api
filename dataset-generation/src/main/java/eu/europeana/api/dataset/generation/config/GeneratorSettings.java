@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 
+import java.util.List;
+
 /**
  * GeneratorSettings is a Spring configuration class responsible for loading
  * application-specific settings from properties files.
@@ -27,6 +29,12 @@ public class GeneratorSettings {
 
     @Value("${keycloak.token.grant.params}")
     private String keycloakAccessGrantParams;
+
+    @Value("${dataset.to.harvest}")
+    private String datasetToHarvest;
+
+    @Value("${max.retry:2}")
+    private int maxRetries;
 
     @Value("${dataset.files.location}")
     private String datasetsFolder;
@@ -66,6 +74,14 @@ public class GeneratorSettings {
 
     public String getKeycloakAccessGrantParams() {
         return keycloakAccessGrantParams;
+    }
+
+    public List<String> getDatasetToHarvest() {
+        return List.of(datasetToHarvest.split(","));
+    }
+
+    public int getMaxRetries() {
+        return maxRetries;
     }
 
     public String getDatasetsFolder() {

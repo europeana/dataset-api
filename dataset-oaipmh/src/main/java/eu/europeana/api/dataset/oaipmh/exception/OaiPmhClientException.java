@@ -10,6 +10,10 @@ public class OaiPmhClientException extends Exception {
     private static final long serialVersionUID = 8281933808897246375L;
     private final int remoteStatusCode;
 
+    public OaiPmhClientException(int remoteStatusCode) {
+        super("Error getting the response from oai pmh with response code - " + remoteStatusCode);
+        this.remoteStatusCode = remoteStatusCode;
+    }
     /**
      * Constructor for exception to indicate that an error occurred during invocation of the remote
      * service or parsing of service response
