@@ -19,7 +19,7 @@ import static eu.europeana.api.dataset.oaipmh.utils.OAIPMHQueryUtils.*;
  * The OaiRawStreamingParser class provides functionality to parse an OAI-PMH
  * response and stream out the metadata of each record while also handling the
  * retrieval of the resumption token for subsequent requests.
- *
+ * <p>
  * we can also load it into Jena later with Model.read(InputStream, null)
  *
  * @author Srishti Singh
@@ -75,7 +75,7 @@ public class OaiRawStreamingParser {
                     inMetadata = true;
                     document = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
                     eventWriter = XMLOutputFactory.newInstance().createXMLEventWriter(new DOMResult(document));
-                   // eventWriter.add(event); // write <metadata> EXACT, we don't want to write <metadata> string
+                    // eventWriter.add(event); // write <metadata> EXACT, we don't want to write <metadata> string
                     continue;
                 }
 
@@ -84,18 +84,11 @@ public class OaiRawStreamingParser {
                 }
 
                 if (RESUMPTION_TOKEN.equals(localName)) {
-                    XMLEvent next = reader.nextEvent();
-                    if (next.isCharacters()) {
-                        resumptionToken = next.asCharacters().getData();
-                    }
+                    resumptionToken = getResumptionToken(reader);
                 }
-            }
-
-            else if (event.isCharacters() && inMetadata) {
+            } else if (event.isCharacters() && inMetadata) {
                 eventWriter.add(event); // exact text
-            }
-
-            else if (event.isEndElement()) {
+            } else if (event.isEndElement()) {
                 EndElement end = event.asEndElement();
                 String localName = end.getName().getLocalPart();
 
@@ -117,5 +110,31 @@ public class OaiRawStreamingParser {
         }
         reader.close();
         return new OaiPage(records, resumptionToken);
+    }
+
+    /**
+     * Extracts the resumption token from the XML stream.
+     * In StAX: <resumptionToken> content is not guaranteed to be a single Characters event
+     * It can be split into multiple chunks
+     *
+     * @param reader xml event reader
+     * @return resumption token
+     * @throws XMLStreamException if there is any exception
+     */
+    private static String getResumptionToken(XMLEventReader reader) throws XMLStreamException {
+        StringBuilder tokenBuilder = new StringBuilder();
+        while (reader.hasNext()) {
+            XMLEvent tokenEvent = reader.nextEvent();
+
+            if (tokenEvent.isCharacters()) {
+                tokenBuilder.append(tokenEvent.asCharacters().getData());
+            }
+
+            if (tokenEvent.isEndElement()
+                    && RESUMPTION_TOKEN.equals(tokenEvent.asEndElement().getName().getLocalPart())) {
+                break;
+            }
+        }
+        return tokenBuilder.toString().trim();
     }
 }
