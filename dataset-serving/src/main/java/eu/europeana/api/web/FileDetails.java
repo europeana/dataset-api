@@ -1,5 +1,8 @@
 package eu.europeana.api.web;
 
+/**
+ * Encapsulates details related to downloadable file e.g. name ,size ,creation date
+ */
 public class FileDetails {
 
     private String fileName;
@@ -8,6 +11,15 @@ public class FileDetails {
     private String lastModified;
     private String downloadURL;
 
+
+    /**
+     * Initialize file details
+     * @param fileName
+     * @param contentType
+     * @param fileSize
+     * @param lastModified
+     * @param url
+     */
     public FileDetails(String fileName, String contentType,String fileSize, String lastModified,String url) {
         this.fileName = fileName;
         this.contentType = contentType;

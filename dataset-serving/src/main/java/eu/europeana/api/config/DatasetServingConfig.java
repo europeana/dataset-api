@@ -16,6 +16,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.context.support.ReloadableResourceBundleMessageSource;
 
+/**
+ *  Configuration class for dataset serving functionality
+ */
 @Configuration
 @PropertySource(
     value = {"classpath:dataset.serving.properties", "classpath:dataset.serving.user.properties"},
@@ -36,10 +39,10 @@ public class DatasetServingConfig {
     @Value("${europeana.apikey.serviceurl}")
     private String apiKeyServiceUrl;
 
-    @Value("keycloak.token.endpoint")
+    @Value("${keycloak.token.endpoint}")
     private String tokenEndpoint;
 
-    @Value("keycloak.token.grant.params")
+    @Value("${keycloak.token.grant.params}")
     private String grantParams;
 
     public String getJwtTokenSignatureKey() {

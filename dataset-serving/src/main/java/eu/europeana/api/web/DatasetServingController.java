@@ -17,19 +17,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Stream;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.support.ResourceRegion;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpRange;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -43,7 +40,9 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 @RestController
 public class DatasetServingController {
 
-    public static Logger LOG = LogManager.getLogger(DatasetServingController.class);
+    private static final Logger LOG = LogManager.getLogger(DatasetServingController.class);
+    private static final String ZIP_EXTENSION = ".zip";
+    private static final int BUFFER_SIZE = 1024;
 
     private DatasetAuthService authService;
 
@@ -67,7 +66,7 @@ public class DatasetServingController {
     public ResponseEntity<Map<String, List<FileDetails>>> getFileList(){
 
         try {
-             Map<String,List<FileDetails>> datasetFilesDetails = new HashMap<>();
+            Map<String,List<FileDetails>> datasetFilesDetails = new HashMap<>();
 
              //look for dataset archive files in each folder which is associated to file content type e.g. XML,TTL
              for(FileTypes extension  : FileTypes.values()){
@@ -75,22 +74,22 @@ public class DatasetServingController {
                  String directoryPath = config.getDataSetLocalStoragePath() + extension.label;
                  Path directory = Paths.get(directoryPath);
                  if (!Files.exists(directory) || !Files.isDirectory(directory)) {
-                      LOG.error("Invalid Path "+directoryPath);
+                     LOG.log(Level.ERROR,"Invalid Path {0}", directoryPath);
                      continue;
                  }
 
                  //If the zip file (<datasetID>.zip) is found  , put it in the response map against that datasetID
                  // Files.list opens the DirectoryStream internally which needs to be closed.
+
                  try (Stream<Path> list = Files.list(directory)) {
-                     list.forEach(path -> {
-                         FileDetails details = getFileDetails(path);
-                         if (details != null) {
+                     list.map(this::getFileDetails)
+                         .filter(Objects::nonNull)
+                         .forEach(details ->
                              datasetFilesDetails.computeIfAbsent(
                                      details.getFileName(),
                                      key -> new ArrayList<>())
-                                 .add(details);
-                         }
-                     });
+                                 .add(details)
+                         );
                  }
              }
             return ResponseEntity.ok().body(datasetFilesDetails);
@@ -114,7 +113,7 @@ public class DatasetServingController {
             BasicFileAttributes fileAttr = Files.readAttributes(filePath,
                 BasicFileAttributes.class);
 
-            if (!fileAttr.isRegularFile() || !filePath.toString().endsWith(".zip")) {
+            if (!fileAttr.isRegularFile() || !filePath.toString().endsWith(ZIP_EXTENSION)) {
                 return null;
             }
 
@@ -123,7 +122,6 @@ public class DatasetServingController {
 
             String baseName = FilenameUtils.getBaseName(filePath.toString());
             return new FileDetails(
-                //filePath.getFileName().toString(),
                 baseName,
                 type,
                 FileUtils.byteCountToDisplaySize(fileAttr.size()),
@@ -132,99 +130,125 @@ public class DatasetServingController {
 
 
         } catch (IOException e) {
-            LOG.error("Error while reading details for filePath- " + filePath.getFileName());
+            LOG.error(String.format("Error while reading details for filePath- %s" , filePath.getFileName()),e.getMessage());
             return null;
         }
 
     }
 
-
+    /**
+     * Generates the streaming response for dataset zip file to download.
+     * @param datasetID numeric id of the dataset
+     * @param fileExtension the type of inner file in the zip to download e.g. XML,TTL
+     * @param rangeHeader range headers provided in case the download is paused and then resumed
+     * @param request HttpServletRequest
+     * @return response entity containing StreamingResponseBody
+     */
     @GetMapping("/dataset/{datasetId}")
     public ResponseEntity<StreamingResponseBody> getFileResource(@PathVariable("datasetId") String datasetID,
         @RequestParam(name = "format",defaultValue ="XML",required = false) String fileExtension,
         @RequestHeader(value = "Range", required = false) String rangeHeader,
         HttpServletRequest request) {
         try {
-            // validate file extension;
             if (!FileTypes.isValid(fileExtension)) {
                 return ResponseEntity.badRequest().build();
             }
-            //validate authentication token
+            LOG.info("Range Header value : {}",rangeHeader);
+            // Only authorized users can download
             authorizeReadAccess(request);
-            // Serve file resource
 
-            // return getResourceRegionResponse(null, getFileToServe(datasetID, fileExtension));
+            return generateResponse(datasetID, fileExtension, rangeHeader);
 
-            StreamingResponseBody responseStream;
-            String filePathString = getFileToServe(datasetID, fileExtension);
-            Path filePath = Paths.get(filePathString);
-            Long fileSize = Files.size(filePath);
-            byte[] buffer = new byte[1024];
-            final HttpHeaders responseHeaders = new HttpHeaders();
+        } catch (ApplicationAuthenticationException e) {
+            LOG.error("Unauthorized access ", e);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        } catch (IOException e) {
+            LOG.error("Exception while fetching the file ", e);
+            return ResponseEntity.notFound().build();
+        }
+    }
 
-            if (rangeHeader == null) {
-                responseHeaders.add("Content-Type", "application/zip");
-                responseHeaders.add("Content-Length", fileSize.toString());
-                responseHeaders.add("Content-Disposition","attachment; filename=\"" + datasetID+".zip" + "\"");
+    private ResponseEntity<StreamingResponseBody> generateResponse(
+        String datasetID, String fileExtension, String rangeHeader) throws IOException {
 
-                responseStream = os -> {
-                    RandomAccessFile file = new RandomAccessFile(filePathString, "r");
-                    try (file) {
-                        long pos = 0;
-                        file.seek(pos);
-                        while (pos < fileSize - 1) {
-                            file.read(buffer);
-                            os.write(buffer);
-                            pos += buffer.length;
-                        }
-                        os.flush();
-                    } catch (Exception e) {}
-                };
-                return new ResponseEntity<>(responseStream, responseHeaders, HttpStatus.OK);
-            }
+        StreamingResponseBody responseStream;
+        String filePathString = getFileToServe(datasetID, fileExtension);
+        Path path = Paths.get(filePathString);
+        Long fileSize = Files.size(path);
 
-            String[] ranges = rangeHeader.split("-");
-            Long rangeStart = Long.parseLong(ranges[0].substring(6));
-            Long rangeEnd;
-            if (ranges.length > 1) {
-                rangeEnd = Long.parseLong(ranges[1]);
-            } else {
-                rangeEnd = fileSize - 1;
-            }
-            if (fileSize < rangeEnd) {
-                rangeEnd = fileSize - 1;
-            }
 
-            String contentLength = String.valueOf((rangeEnd - rangeStart) + 1);
-            responseHeaders.add("Content-Type", "application/zip");
-            responseHeaders.add("Content-Length", contentLength);
-            responseHeaders.add("Content-Disposition","attachment; filename=\"" + datasetID+".zip" + "\"");
-            responseHeaders.add("Accept-Ranges", "bytes");
-            responseHeaders.add("Content-Range", "bytes" + " " + rangeStart + "-" + rangeEnd + "/" + fileSize);
+        String etag = "\"" + fileSize + "-" + Files.getLastModifiedTime(path) + "\"";
 
-            final Long _rangeEnd = rangeEnd;
+        byte[] buffer = new byte[BUFFER_SIZE];
+        final HttpHeaders responseHeaders = new HttpHeaders();
+
+        if (rangeHeader == null) {
+            updateResponseHeaders(datasetID, responseHeaders, fileSize.toString(),etag);
+
             responseStream = os -> {
                 RandomAccessFile file = new RandomAccessFile(filePathString, "r");
                 try (file) {
-                    long pos = rangeStart;
+                    long pos = 0;
                     file.seek(pos);
-                    while (pos < _rangeEnd) {
+                    while (pos < fileSize - 1) {
                         file.read(buffer);
                         os.write(buffer);
                         pos += buffer.length;
                     }
                     os.flush();
-                } catch (Exception e) {}
+                }
             };
-            return new ResponseEntity<>(responseStream, responseHeaders, HttpStatus.PARTIAL_CONTENT);
-
-
-
-        } catch (ApplicationAuthenticationException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        } catch (IOException e) {
-            return ResponseEntity.notFound().build();
+            return new ResponseEntity<>(responseStream, responseHeaders, HttpStatus.OK);
         }
+
+        //If the Range headers are specified e.g. 'bytes=500-1000' calculate ranges
+        String rangeValue = rangeHeader.replace("bytes=", "");
+        String[] ranges = rangeValue.split("-");
+        Long rangeStart = Long.parseLong(ranges[0]);
+        Long rangeEnd = calculateRangeEnd(ranges, fileSize);
+        String contentLength = String.valueOf((rangeEnd - rangeStart) + 1);
+        updateResponseHeaders(datasetID, responseHeaders, contentLength,etag);
+
+        responseHeaders.add(HttpHeaders.CONTENT_RANGE, "bytes" + " " + rangeStart + "-" + rangeEnd + "/" + fileSize);
+
+        final Long rangeEndVal = rangeEnd;
+        responseStream = os -> {
+            RandomAccessFile file = new RandomAccessFile(filePathString, "r");
+            try (file) {
+                long pos = rangeStart;
+                file.seek(pos);
+                while (pos < rangeEndVal) {
+                    file.read(buffer);
+                    os.write(buffer);
+                    pos += buffer.length;
+                }
+                os.flush();
+            }
+        };
+        return new ResponseEntity<>(responseStream, responseHeaders, HttpStatus.PARTIAL_CONTENT);
+    }
+
+    private Long calculateRangeEnd(String[] ranges, Long fileSize) {
+        Long rangeEnd;
+        if (ranges.length > 1) {
+            rangeEnd = Long.parseLong(ranges[1]);
+        } else {
+            rangeEnd = fileSize - 1;
+        }
+        if (fileSize < rangeEnd) {
+            rangeEnd = fileSize - 1;
+        }
+        return rangeEnd;
+    }
+
+    private static void updateResponseHeaders(String datasetID, HttpHeaders responseHeaders,
+        String contentLength,String etag) {
+        responseHeaders.add(HttpHeaders.CONTENT_TYPE, "application/zip");
+        responseHeaders.add(HttpHeaders.CONTENT_LENGTH, contentLength);
+        responseHeaders.add(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename=\"" + datasetID + ZIP_EXTENSION
+            + "\"");
+        responseHeaders.add(HttpHeaders.ACCEPT_RANGES, "bytes");
+        responseHeaders.add(HttpHeaders.ETAG,etag);
     }
 
     private void authorizeReadAccess(HttpServletRequest request) throws ApplicationAuthenticationException {
@@ -233,11 +257,11 @@ public class DatasetServingController {
         }
     }
 
-
     private String getFileToServe(String datasetID, String fileExtention) throws IOException {
-        String filePath =
-            config.getDataSetLocalStoragePath() + "/" + fileExtention.toUpperCase() + "/"
-                + datasetID + ".zip";
+        String filePath = Paths.get(
+            config.getDataSetLocalStoragePath(), fileExtention.toUpperCase(Locale.ENGLISH),
+            datasetID + ZIP_EXTENSION).toString();
+
         //validate if file exists
         File file = new File(filePath);
         if(!file.exists()){
@@ -245,34 +269,4 @@ public class DatasetServingController {
         }
         return file.getPath();
     }
-
-    private ResponseEntity<ResourceRegion> getResourceRegionResponse(
-        HttpHeaders headers, File file) throws IOException {
-        FileSystemResource resource = new FileSystemResource(file);
-        long contentLength = resource.contentLength();
-        long smallestChunkSizeInBytes = 1024 * 1024L;
-
-        //check if the range header is specified .Download only that much data.
-        HttpRange range = (headers.getRange().isEmpty() ?null: headers.getRange().get(0));
-        if(range!=null){
-            long startPos = range.getRangeStart(contentLength);
-            long end = range.getRangeEnd(contentLength);
-            long rangeLength = Math.min(smallestChunkSizeInBytes,end-startPos+1);
-            return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
-                .header(HttpHeaders.ACCEPT_RANGES, "bytes")
-                .contentType(MediaType.parseMediaType("application/zip"))
-                .contentLength(rangeLength)
-                .body(new ResourceRegion(resource, 0, smallestChunkSizeInBytes));
-        }
-        //Send full file if it's less than the smallestChunk Size
-        else{
-            long fullRangeLength = Math.min(smallestChunkSizeInBytes,contentLength);
-            return ResponseEntity.ok()
-                .header(HttpHeaders.ACCEPT_RANGES, "bytes")
-                .contentType(MediaType.parseMediaType("application/zip"))
-                .contentLength(fullRangeLength)
-                .body(new ResourceRegion(resource, 0, fullRangeLength));
-        }
-    }
-
 }

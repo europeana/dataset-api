@@ -7,6 +7,9 @@ import jakarta.annotation.Resource;
 import org.springframework.security.oauth2.provider.ClientDetailsService;
 import org.springframework.stereotype.Service;
 
+/**
+ * For Authorization using api-commons
+ */
 @Service
 public class DatasetAuthService extends BaseAuthorizationService {
 
@@ -15,6 +18,10 @@ public class DatasetAuthService extends BaseAuthorizationService {
     @Resource(name = "datasetClientDetailsService")
     ClientDetailsService clientDetailsService;
 
+    /**
+     * Initialize DatasetAuthService
+     * @param config application config
+     */
     public DatasetAuthService(DatasetServingConfig config){
         this.config = config;
 
@@ -23,15 +30,12 @@ public class DatasetAuthService extends BaseAuthorizationService {
     protected Role getRoleByName(String s) {
         return null;
     }
-
     @Override
     protected String getSignatureKey() {
         return config.getJwtTokenSignatureKey();
     }
-
     @Override
     protected ClientDetailsService getClientDetailsService() {
-
         return this.clientDetailsService;
     }
     @Override

@@ -1,6 +1,7 @@
 package eu.europeana.api.web;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -9,7 +10,6 @@ import java.util.Map;
  */
 public enum FileTypes {
     XML("XML"), TTL("TURTLE");
-    public final String label;
 
     private static final Map<String, String> fileExtensions = new HashMap<>();
     static {
@@ -18,9 +18,15 @@ public enum FileTypes {
         }
     }
 
+    /**
+     * Represents name of directory associated to file extension
+     */
+    public final String label;
+
     FileTypes(String label) {
         this.label = label;
     }
+
 
     /**
      * Validate if provided fileExtension matches valid file extension.
@@ -28,10 +34,19 @@ public enum FileTypes {
      * @return  {@code true} if exists and part of supported extensions map otherwise {@code false}.
      */
     public static boolean isValid(String fileExtension) {
-        return fileExtension != null &&  fileExtensions.containsValue(fileExtension.toUpperCase());
+        return fileExtension != null &&  fileExtensions.containsValue(fileExtension.toUpperCase(
+            Locale.ENGLISH));
     }
 
+    /**
+     * Return the file extension for the requested value.
+     * e.g. TTL for the label 'TURTLE'
+     * @param label directory name
+     * @return value of file extension associated to requested label
+     */
     public static String getTypeByLabel(String label){
       return fileExtensions.get(label);
     }
+
+
 }
