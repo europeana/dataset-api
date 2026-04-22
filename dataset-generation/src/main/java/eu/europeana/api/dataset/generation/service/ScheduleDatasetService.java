@@ -142,14 +142,23 @@ public class ScheduleDatasetService {
         }
     }
 
+    /**
+     * Retrieves a list of {@link ScheduledDataset} objects where the property
+     * `hasBeenProcessed` is set to false.
+     *
+     * @return A list of {@link ScheduledDataset} objects that have not yet been processed.
+     *         If no such objects exist, an empty list is returned.
+     */
     public List<ScheduledDataset> findHasBeenProcessedFalse() {
         return repository.findByHasBeenProcessedFalse();
     }
 
-    public void updateStatus(List<ScheduledDataset> datasets) {
-        repository.saveAllAndFlush(datasets);
-    }
 
+    /**
+     * Retrieves the total count of scheduled datasets from the repository.
+     *
+     * @return the total number of scheduled datasets as a long value.
+     */
     public long count() {
        return repository.count();
     }
