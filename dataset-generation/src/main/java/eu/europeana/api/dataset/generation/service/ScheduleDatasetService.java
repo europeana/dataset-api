@@ -142,7 +142,15 @@ public class ScheduleDatasetService {
         }
     }
 
+    public List<ScheduledDataset> findHasBeenProcessedFalse() {
+        return repository.findByHasBeenProcessedFalse();
+    }
+
     public void updateStatus(List<ScheduledDataset> datasets) {
         repository.saveAllAndFlush(datasets);
+    }
+
+    public long count() {
+       return repository.count();
     }
 }

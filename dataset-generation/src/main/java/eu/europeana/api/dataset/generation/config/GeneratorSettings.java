@@ -101,6 +101,10 @@ public class GeneratorSettings {
                 ".csv";
     }
 
+    public String getFailedSetsFile() {
+        return getDatasetsFolder() + "failed-sets.txt";
+    }
+
     public boolean isForceHarvest() {
         return StringUtils.equalsIgnoreCase(getDatasetToHarvest(),  "ALL");
     }
