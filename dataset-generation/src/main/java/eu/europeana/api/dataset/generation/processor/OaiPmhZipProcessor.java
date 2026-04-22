@@ -6,6 +6,7 @@ import eu.europeana.api.dataset.generation.format.DataFormatter;
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
 import eu.europeana.api.dataset.generation.service.ListRecordService;
 import eu.europeana.api.dataset.generation.service.RecordSink;
+import eu.europeana.api.dataset.generation.service.ScheduleDatasetService;
 import eu.europeana.api.dataset.generation.service.impl.MultiRecordSink;
 import eu.europeana.api.dataset.generation.service.impl.ZipRecordSink;
 import jakarta.annotation.Resource;
@@ -40,6 +41,9 @@ public class OaiPmhZipProcessor extends BaseProcessor {
     @Resource
     private ListRecordService listRecordService;
 
+    @Resource
+    ScheduleDatasetService scheduleDatasetService;
+
     @Resource(name = DATA_FORMATS_BEAN)
     private Map<RdfFormat, DataFormatter> formats;
 
@@ -54,7 +58,8 @@ public class OaiPmhZipProcessor extends BaseProcessor {
         }
 
         try (MultiRecordSink multiSink = new MultiRecordSink(sinks)) {
-            listRecordService.streamRecords(dataset, multiSink);
+            long failedRecords = listRecordService.streamRecords(dataset, multiSink);
+            scheduleDatasetService.updateFailedRecords(dataset, failedRecords); // update failedRecords and hasBeenProcessed
         }
 
         return dataset;

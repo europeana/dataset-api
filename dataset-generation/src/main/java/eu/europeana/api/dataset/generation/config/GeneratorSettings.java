@@ -1,10 +1,12 @@
 package eu.europeana.api.dataset.generation.config;
 
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 
-import java.util.List;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 /**
  * GeneratorSettings is a Spring configuration class responsible for loading
@@ -76,8 +78,8 @@ public class GeneratorSettings {
         return keycloakAccessGrantParams;
     }
 
-    public List<String> getDatasetToHarvest() {
-        return List.of(datasetToHarvest.split(","));
+    public String getDatasetToHarvest() {
+        return datasetToHarvest;
     }
 
     public int getMaxRetries() {
@@ -90,6 +92,17 @@ public class GeneratorSettings {
 
     public String getSnapshotFile() {
         return getDatasetsFolder() + snapshotFile;
+    }
+
+    public String getCsvReportPath() {
+        return getDatasetsFolder() +
+                "status_" +
+                LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd")) +
+                ".csv";
+    }
+
+    public boolean isForceHarvest() {
+        return StringUtils.equalsIgnoreCase(getDatasetToHarvest(),  "ALL");
     }
 
     public String getLastHarvestDateFile() {

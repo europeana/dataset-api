@@ -14,12 +14,10 @@ import org.springframework.batch.repeat.RepeatStatus;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * The DatasetDeletionTasklet class is responsible for performing a cleanup task
@@ -31,14 +29,13 @@ import java.util.stream.Stream;
  * @author  Srishti Singh
  * @since   23 march 2026
  */
-public class DatasetDeletionTasklet implements Tasklet {
+public class DatasetDeletionTasklet extends TaskletSupport implements Tasklet {
 
     private static final Logger LOG = LogManager.getLogger(DatasetDeletionTasklet.class);
 
     private final String snapshotFilePath;
-
+    private final String csvReportPath;
     private final SearchApiDatasetReader searchApiDatasetReader;
-
     private final DeletionService deletionService;
 
     /**
@@ -47,14 +44,20 @@ public class DatasetDeletionTasklet implements Tasklet {
      * @param snapshotFilePath the file path where the snapshot of dataset identifiers
      *                         is stored. This file is used to determine which datasets
      *                         need to be deleted.
+     *
+     * @param csvReportPath the file path where the CSV report of deleted datasets is stored.
+     *
      * @param searchApiDatasetReader an instance of SearchApiDatasetReader, which is used
      *                                to retrieve the current datasets available through the
      *                                search API.
      * @param deletionService an instance of DeletionService, which handles the deletion
      *                        of files associated with datasets that need to be removed.
      */
-    public DatasetDeletionTasklet(String snapshotFilePath, SearchApiDatasetReader searchApiDatasetReader, DeletionService deletionService) {
+    public DatasetDeletionTasklet(String snapshotFilePath, String csvReportPath,
+                                  SearchApiDatasetReader searchApiDatasetReader,
+                                  DeletionService deletionService) {
         this.snapshotFilePath = snapshotFilePath;
+        this.csvReportPath = csvReportPath;
         this.searchApiDatasetReader = searchApiDatasetReader;
         this.deletionService = deletionService;
     }
@@ -62,9 +65,11 @@ public class DatasetDeletionTasklet implements Tasklet {
     @Override
     public @Nullable RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
         LOG.info("Starting dataset cleanup/deletion tasklet...");
+        long start = System.currentTimeMillis();
 
-        Set<String> previousSnapshot = loadSnapshot();
-        LOG.info("Loaded {} IDs from previous snapshot", previousSnapshot.size());
+        Set<String> previousSnapshot = loadSnapshot(this.snapshotFilePath);
+        LOG.info("Loaded {} IDs from previous snapshot in {} ms", previousSnapshot.size(),
+                System.currentTimeMillis() - start);
 
         Set<String> currentDatasets = getCurrentDatasets();
         LOG.info("Fetched {} current datasets from SR Api", currentDatasets.size());
@@ -74,6 +79,9 @@ public class DatasetDeletionTasklet implements Tasklet {
 
         // delete the datasets
         deletionService.deleteFiles(datasetsForRemoval);
+
+        // add the removed datasets in the csv report
+        addDeletedDatasetToReport(csvReportPath, datasetsForRemoval);
 
         // Save the current snapshot for the next run
         saveSnapshot(currentDatasets);
@@ -97,23 +105,7 @@ public class DatasetDeletionTasklet implements Tasklet {
         datasetsForRemoval.removeAll(currentDatasets);
         return datasetsForRemoval;
     }
-    /**
-     * Loads a snapshot of dataset identifiers from a file. If the file does not exist,
-     * an empty set is returned.
-     *
-     * @return a set of dataset identifiers loaded from the snapshot file, or an empty set
-     * if the file does not exist.
-     * @throws IOException if an I/O error occurs while reading the snapshot file.
-     */
-    private Set<String> loadSnapshot() throws IOException {
-        Path path = Paths.get(this.snapshotFilePath);
-        if (!Files.exists(path)) {
-            return new HashSet<>();
-        }
-        try (Stream<String> lines = Files.lines(path)) {
-            return lines.collect(Collectors.toSet());
-        }
-    }
+
 
     /**
      * Retrieves the set of current dataset identifiers by reading datasets

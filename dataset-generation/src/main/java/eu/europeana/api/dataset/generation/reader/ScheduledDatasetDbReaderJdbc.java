@@ -4,8 +4,6 @@ import eu.europeana.api.dataset.generation.exception.DatasetGenerationException;
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
 import eu.europeana.api.dataset.generation.utils.ModelConstants;
 import jakarta.annotation.Nullable;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.batch.item.database.JdbcPagingItemReader;
 import org.springframework.batch.item.database.Order;
 import org.springframework.batch.item.database.PagingQueryProvider;
@@ -27,8 +25,6 @@ import java.util.Map;
  * @since 15 April 2026
  */
 public class ScheduledDatasetDbReaderJdbc extends JdbcPagingItemReader<ScheduledDataset> {
-
-    private static final Logger LOG = LogManager.getLogger(ScheduledDatasetDbReaderJdbc.class);
 
     private final int readerPageSize;
 

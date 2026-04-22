@@ -122,4 +122,27 @@ public class ScheduleDatasetService {
         List<ScheduledDataset> saved = repository.saveAllAndFlush(toSave);
         LOGGER.info("Marked {} datasets as processed", saved.size());
     }
+
+    /**
+     * Updates the number of failed records and the processed status of the given {@link ScheduledDataset}.
+     * If the number of failed records is 0, the dataset is marked as processed.
+     * The updated dataset is saved to the repository and a log entry is created.
+     *
+     * @param dataset the {@link ScheduledDataset} whose failed records and processed status are to be updated
+     * @param failedRecords the number of failed records to set in the dataset
+     */
+    public void updateFailedRecords(ScheduledDataset dataset, long failedRecords) {
+        dataset.setFailedRecords(failedRecords);
+        dataset.setHasBeenProcessed(failedRecords == 0);
+        ScheduledDataset saved = repository.saveAndFlush(dataset);
+
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Dataset {} updated with failedRecords : {} , hasBeenProcessed : {}",
+                    saved.getDatasetId(), saved.getFailedRecords(), saved.getHasBeenProcessed());
+        }
+    }
+
+    public void updateStatus(List<ScheduledDataset> datasets) {
+        repository.saveAllAndFlush(datasets);
+    }
 }

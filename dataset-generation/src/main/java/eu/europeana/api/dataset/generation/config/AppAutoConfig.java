@@ -7,10 +7,10 @@ import eu.europeana.api.commons_sb3.definitions.format.RdfFormat;
 import eu.europeana.api.commons_sb3.error.EuropeanaApiException;
 import eu.europeana.api.commons_sb3.slack.SlackConnection;
 import eu.europeana.api.dataset.generation.deletion.impl.FileDeletionService;
-import eu.europeana.api.dataset.generation.exception.DatasetGenerationException;
 import eu.europeana.api.dataset.generation.format.DataFormatter;
 import eu.europeana.api.dataset.generation.format.impl.TurtleFormatter;
 import eu.europeana.api.dataset.generation.format.impl.XMLFormatter;
+import eu.europeana.api.dataset.generation.listener.DatasetReportListener;
 import eu.europeana.api.dataset.generation.listener.ScheduledDatasetItemListener;
 import eu.europeana.api.dataset.generation.model.JobParameter;
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
@@ -18,19 +18,25 @@ import eu.europeana.api.dataset.generation.processor.DatasetDeletionTasklet;
 import eu.europeana.api.dataset.generation.reader.ScheduledDatasetDbReaderJdbc;
 import eu.europeana.api.dataset.generation.reader.SearchApiDatasetReader;
 import eu.europeana.api.dataset.generation.service.ScheduleDatasetService;
+import eu.europeana.api.dataset.generation.writer.ScheduledDatasetWriter;
 import eu.europeana.api.dataset.oaipmh.OAIPMHServiceClient;
 import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.*;
+import org.springframework.batch.item.file.FlatFileItemWriter;
+import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
+import org.springframework.batch.item.file.transform.FieldExtractor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.datasource.init.DataSourceInitializer;
@@ -41,9 +47,14 @@ import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
 import javax.xml.transform.TransformerFactory;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.*;
 
@@ -182,6 +193,7 @@ public class AppAutoConfig {
     public DatasetDeletionTasklet getDeletionTasklet() {
         return  new DatasetDeletionTasklet(
                 settings.getSnapshotFile(),
+                settings.getCsvReportPath(),
                 applicationContext.getBean(SearchApiDatasetReader.class),
                 new FileDeletionService(settings.getDatasetsFolder())) ;
     }
@@ -202,7 +214,6 @@ public class AppAutoConfig {
                 RdfFormat.XML, new XMLFormatter(TransformerFactory.newInstance()),
                 RdfFormat.TURTLE, new TurtleFormatter(TransformerFactory.newInstance()));
     }
-
 
     /**
      * Initializes the Spring Batch metadata schema by explicitly loading the schema-h2.sql file
@@ -225,4 +236,93 @@ public class AppAutoConfig {
 
         return initializer;
     }
+
+    /**
+     * Provides a {@link DatasetReportListener} bean configured with application-specific
+     * settings. The listener is responsible for handling dataset processing reports
+     * during the application's operation.
+     *
+     * @return an instance of {@link DatasetReportListener}
+     */
+    @Bean
+    public DatasetReportListener getdDatasetReportListener() {
+        return new DatasetReportListener(
+                settings.isForceHarvest(),
+                getLastHarvestDate(),
+                settings.getSnapshotFile(),
+                settings.getDatasetsFolder());
+    }
+
+    /**
+     * Configures and provides an {@link ItemWriter} specifically for writing {@link ScheduledDataset}
+     * entities to a flat CSV file. The writer is initialized with necessary settings, including the
+     * header, file name, and line aggregation mechanism.
+     *
+     * @return an instance of {@link ItemWriter} that writes {@link ScheduledDataset} data to a flat file.
+     */
+    @Bean(SCHEDULED_DATASET_WRITER)
+    public ItemWriter<ScheduledDataset> getFlatFileItemWriter() {
+        FlatFileItemWriter<ScheduledDataset> writer = new FlatFileItemWriter<>();
+
+        writer.setName("DatasetStatusReport");
+        writer.setResource(new FileSystemResource(settings.getCsvReportPath()));
+        writer.setAppendAllowed(true);
+
+        writer.setHeaderCallback(w -> w.write(CSV_REPORT_HEADER));
+        writer.setLineAggregator(lineAggregator(scheduledDatasetFieldExtractor()));
+
+        return new ScheduledDatasetWriter(writer, getdDatasetReportListener());
+    }
+
+    /**
+     * Provides a {@link FieldExtractor} for extracting specific fields from a {@link ScheduledDataset} instance.
+     * The fields extracted include:
+     * - Dataset ID
+     * - Status
+     * - Total size
+     * - Failed records
+     *
+     * @return an instance of {@link FieldExtractor} that extracts an array of objects representing the dataset's fields.
+     */
+    @Bean
+    public FieldExtractor<ScheduledDataset> scheduledDatasetFieldExtractor() {
+        return dataset -> new Object[] {
+                dataset.getDatasetId(),
+                dataset.getStatus(),
+                dataset.getTotalSize(),
+                dataset.getFailedRecords()
+        };
+    }
+
+    @Bean
+    public DelimitedLineAggregator<ScheduledDataset> lineAggregator(
+            FieldExtractor<ScheduledDataset> scheduledDatasetFieldExtractor) {
+
+        DelimitedLineAggregator<ScheduledDataset> aggregator = new DelimitedLineAggregator<>();
+        aggregator.setDelimiter(",");
+        aggregator.setFieldExtractor(scheduledDatasetFieldExtractor);
+
+        return aggregator;
+    }
+
+    /**
+     * Retrieves the last harvest date from the specified file. The file is expected to contain
+     * a single ISO-8601 formatted date string. If the file cannot be read or contains invalid
+     * data, an error is logged and null is returned.
+     *
+     * @return the last harvest date as a {@link Date} object if successfully parsed, or null
+     *         if an error occurs or the date is invalid.
+     */
+    @Bean(LAST_HARVEST_DATE_BEAN)
+    public  Date getLastHarvestDate()  {
+        try {
+            String content = Files.readString(Path.of(settings.getLastHarvestDateFile())).trim();
+            return Date.from(Instant.parse(content));
+        } catch (IOException e) {
+            LOG.error("Error reading last harvest date file - {}", e.getMessage());
+        }
+        return null;
+    }
+
+
 }

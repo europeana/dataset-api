@@ -3,6 +3,7 @@ package eu.europeana.api.dataset.generation;
 import eu.europeana.api.commons_sb3.error.EuropeanaApiException;
 import eu.europeana.api.dataset.generation.config.GeneratorSettings;
 import eu.europeana.api.dataset.generation.model.Dataset;
+import eu.europeana.api.dataset.generation.processor.TaskletSupport;
 import eu.europeana.api.dataset.generation.reader.SearchApiDatasetReader;
 import eu.europeana.api.dataset.generation.service.DatasetGenerationExecutor;
 import eu.europeana.api.dataset.generation.service.ScheduleDatasetService;
@@ -16,14 +17,10 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.event.EventListener;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.Instant;
 import java.util.*;
 
 import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.BEAN_BATCH_SCHEDULED_DATASET_SERVICE;
+import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.LAST_HARVEST_DATE_BEAN;
 
 /**
  * Main application. Allows deploying as a war and logs instance data when deployed in Cloud Foundry
@@ -31,7 +28,7 @@ import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.BEAN_
 @SpringBootApplication(scanBasePackages = {"eu.europeana.api.dataset.generation"}, exclude = {
         SecurityAutoConfiguration.class,    // Remove these exclusions to re-enable security
 })
-public class DatasetGenerationApp {
+public class DatasetGenerationApp extends TaskletSupport {
 
     private static final Logger LOG = LogManager.getLogger(DatasetGenerationApp.class);
 
@@ -46,6 +43,9 @@ public class DatasetGenerationApp {
 
     @Resource
     GeneratorSettings settings;
+
+    @Resource(name = LAST_HARVEST_DATE_BEAN)
+    Date lastHarvestDate;
 
     /**
      * Starts the application workflow for dataset generation. This method is triggered upon the application
@@ -65,14 +65,25 @@ public class DatasetGenerationApp {
     public void start() throws EuropeanaApiException {
         LOG.info("Starting Dataset Generation App ...");
 
-        Date lastHarvestDate = getLastHarvestDate(settings.getLastHarvestDateFile());
         if (lastHarvestDate == null) {
             LOG.info("No previous harvest date found, All the datasets will be harvested .....");
         }
-        List<Dataset> datasetToSchedule = searchApiDatasetReader.getDataset(lastHarvestDate);
+
+        if (settings.isForceHarvest()) {
+            lastHarvestDate = null;
+            LOG.info("Forced harvest of all the datasets. datasetsToHarvest: {}", settings.getDatasetToHarvest() );
+        }
+
+       // List<Dataset> datasetToSchedule = searchApiDatasetReader.getDataset(lastHarvestDate);
+
+        List<Dataset> datasetToSchedule = new ArrayList<>();
+      //  datasetToSchedule.add(new Dataset("1536",1623 ));
+        datasetToSchedule.add(new Dataset("1533",1 ));
+        datasetToSchedule.add(new Dataset("536",392 ));
+        datasetToSchedule.add(new Dataset("1514",4 ));
+        datasetToSchedule.add(new Dataset("1524",1 ));
 
         scheduleDatasetService.scheduleDatasetsForDownload(datasetToSchedule);
-
         datasetGenerationExecutor.runScheduledDatasets();
     }
 
@@ -105,24 +116,4 @@ public class DatasetGenerationApp {
         context.close();
         System.exit(0);
     }
-
-    /**
-     * Retrieves the last harvest date from the specified file. The file is expected to contain
-     * a single ISO-8601 formatted date string. If the file cannot be read or contains invalid
-     * data, an error is logged and null is returned.
-     *
-     * @param filePath the path to the file containing the last harvest date.
-     * @return the last harvest date as a {@link Date} object if successfully parsed, or null
-     *         if an error occurs or the date is invalid.
-     */
-    public static Date getLastHarvestDate(String filePath)  {
-        try {
-            String content = Files.readString(Path.of(filePath)).trim();
-            return Date.from(Instant.parse(content));
-        } catch (IOException e) {
-            LOG.error("Error reading last harvest date file - {}", e.getMessage());
-        }
-        return null;
-    }
-
 }

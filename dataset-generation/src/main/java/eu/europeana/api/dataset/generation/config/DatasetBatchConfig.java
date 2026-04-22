@@ -2,10 +2,9 @@ package eu.europeana.api.dataset.generation.config;
 
 import eu.europeana.api.dataset.generation.listener.ScheduledDatasetItemListener;
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
-import eu.europeana.api.dataset.generation.processor.DatasetReportTasklet;
+import eu.europeana.api.dataset.generation.processor.JobCompletionTasklet;
 import eu.europeana.api.dataset.generation.processor.DatasetDeletionTasklet;
 import eu.europeana.api.dataset.generation.processor.OaiPmhZipProcessor;
-import eu.europeana.api.dataset.generation.writer.ScheduledDatasetWriter;
 import jakarta.annotation.Resource;
 
 import org.springframework.batch.core.ItemProcessListener;
@@ -115,7 +114,7 @@ public class DatasetBatchConfig extends DefaultBatchConfiguration {
 
     /**
      * Configures and returns a Spring Batch {@link Step} for updating the dataset status
-     * and sending a corresponding report. This step utilizes a {@link DatasetReportTasklet},
+     * and sending a corresponding report. This step utilizes a {@link JobCompletionTasklet},
      * which performs the following operations:
      *
      * - Updates the last harvest date to the current date in the database.
@@ -128,7 +127,7 @@ public class DatasetBatchConfig extends DefaultBatchConfiguration {
     @Bean
     public Step updateAndSendReport(JobRepository jobRepository) {
         return new StepBuilder("updateDatasetStatus", jobRepository)
-                .tasklet(appContext.getBean(DatasetReportTasklet.class), transactionManager)
+                .tasklet(appContext.getBean(JobCompletionTasklet.class), transactionManager)
                 .build();
     }
 
@@ -161,7 +160,7 @@ public class DatasetBatchConfig extends DefaultBatchConfiguration {
     }
 
     private ItemWriter<ScheduledDataset> getWriter() {
-        return appContext.getBean(ScheduledDatasetWriter.class);
+        return (ItemWriter<ScheduledDataset>) appContext.getBean(SCHEDULED_DATASET_WRITER);
     }
 
     private TaskExecutor getCustomTaskExecutor() {

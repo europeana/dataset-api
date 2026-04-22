@@ -89,8 +89,8 @@ public class SearchApiDatasetReader {
     /**
      * Builds the search API URL with the given parameters.
      * <p>
-     * https://api.europeana.eu/record/search.json?qf=timestamp_update:[from TO *]&wskey=&
-     * query=*&profile=facets&f.edm_datasetName.facet.limit=5000&facet=edm_datasetName&rows=0
+     * https://api.europeana.eu/record/search.json?
+     * qf=timestamp_update:[from TO *]&wskey=&query=*&profile=facets&f.edm_datasetName.facet.limit=5000&facet=edm_datasetName&rows=0
      *
      * @param timestampUpdate an optional timestamp string used to filter results by `timestamp_update`;
      *                        if not provided or empty, this parameter will be excluded from the URL.

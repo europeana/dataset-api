@@ -1,8 +1,6 @@
 package eu.europeana.api.dataset.generation.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 import java.time.Instant;
 
@@ -28,6 +26,10 @@ public class ScheduledDataset {
     private Instant created;
     private Instant modified;
     private boolean hasBeenProcessed;
+    private long failedRecords;
+
+    @Enumerated(EnumType.STRING)
+    private DatasetStatus status;
 
     public String getDatasetId() {
         return datasetId;
@@ -61,7 +63,26 @@ public class ScheduledDataset {
         this.modified = modified;
     }
 
+    public boolean getHasBeenProcessed() {
+        return hasBeenProcessed;
+    }
     public void setHasBeenProcessed(boolean hasBeenProcessed) {
         this.hasBeenProcessed = hasBeenProcessed;
+    }
+
+    public long getFailedRecords() {
+        return failedRecords;
+    }
+
+    public void setFailedRecords(long failedRecords) {
+        this.failedRecords = failedRecords;
+    }
+
+    public DatasetStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(DatasetStatus status) {
+        this.status = status;
     }
 }
