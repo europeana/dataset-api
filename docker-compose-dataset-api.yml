@@ -1,0 +1,15 @@
+services:
+  app:
+    image: ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}
+    container_name: dataset-api
+    #For running on windows , the path needs to start with drive e.g. C:/opt/app/storage
+    volumes:
+      - "${HOST_STORAGE_PATH}:${LOCAL_STORAGE_PATH}"
+    ports:
+      - "8081:8080"
+    pull_policy: never
+    environment:
+      - SERVER_PORT=8080
+        # Provision to override the property
+      - DATASET_STORAGE_PATH_LOCAL=${LOCAL_STORAGE_PATH}
+    restart: always
