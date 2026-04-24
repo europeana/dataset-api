@@ -2,14 +2,18 @@ services:
   app:
     image: ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}
     container_name: dataset-api
-    #For running on windows , the path needs to start with drive e.g. C:/opt/app/storage
-    volumes:
-      - "${HOST_STORAGE_PATH}:${LOCAL_STORAGE_PATH}"
+    pull_policy: never
+    restart: always
     ports:
       - "8081:8080"
-    pull_policy: never
+    # For running on windows , the path needs to start with drive e.g. C:/opt/app/storage,C:/opt/app/config/
+    volumes:
+      - "${HOST_STORAGE_PATH}:${LOCAL_STORAGE_PATH}"
+      # Read-only mount for external config
+      -  "/opt/app/config/:/opt/app/config/:ro"
     environment:
       - SERVER_PORT=8080
         # Provision to override the property
       - DATASET_STORAGE_PATH_LOCAL=${LOCAL_STORAGE_PATH}
-    restart: always
+        # Spring Boot additional config location
+      - SPRING_CONFIG_ADDITIONAL_LOCATION=file:/opt/app/config/dataset.serving.user.properties
