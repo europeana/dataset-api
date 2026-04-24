@@ -1,7 +1,3 @@
-# Send only unzipped war directory to Docker
-**
-!dataset-generation/target/dataset-generation-*.jar
-
 # Sensitive config (IMPORTANT) ignore all properties
 **/*dataset-generation.properties
 **/*.user.properties
