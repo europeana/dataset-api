@@ -110,7 +110,7 @@ public class GeneratorSettings {
     }
 
     public String getLastHarvestDateFile() {
-        return getDatasetsFolder() + "last-harvest-date.txt";
+        return getDatasetsFolder() + "lastHarvestDate.txt";
     }
 
     public String getSlackWebhook() {
