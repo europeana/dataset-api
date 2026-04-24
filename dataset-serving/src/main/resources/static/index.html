@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <title>Europeana Datasets</title>
+ <meta charset="utf-8" />
+ <style>
+  body {
+   font-family: sans-serif;
+   padding: 20px;
+   background-color: #f0f2f5;
+   color: #333;
+  }
+
+  .file-list { list-style: none; padding: 0; }
+  .file-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #fafafa; }
+
+  .file-info { flex-grow: 1; }
+  .file-name { font-weight: 600; color: #202124; }
+  .file-meta { font-size: 0.85em; color: #70757a; margin-top: 4px; }
+  .controls { display: flex; gap: 10px; align-items: center; }
+  .btn { padding: 6px 14px; border-radius: 4px; border: none; cursor: pointer; font-weight: 500; transition: opacity 0.2s; }
+  .btn-download { background-color: #1a73e8; color: white; text-decoration: none}
+  .status { font-size: 0.8em; font-weight: bold; min-width: 80px; text-align: right; }
+
+ </style>
+</head>
+<body>
+<h2>Download Datasets</h2>
+<ul id="dataset-container"></ul>
+
+<script>
+
+ async function fetchFileDetails(){
+  const container = document.getElementById('dataset-container');
+  container.innerHTML = '<li>Loading...</li>';
+
+  try {
+  <!-- Get the response -->
+  const response = await fetch('/dataset/');
+  const data = await response.json();
+   container.innerHTML = '';
+
+   for (const datasetID in data) {
+   <!-- create list item for each dataset which has all type of downloadable file details -->
+    const groupLi = document.createElement('li');
+    groupLi.className = 'dataset-group';
+
+    let fileHtml = ''
+    data[datasetID].forEach(file => {
+
+     fileHtml += `
+      <li class="file-item">
+        <div class="file-info">
+          <div class="file-name">${file.fileName}.${file.contentType}</div>
+           <div class="file-meta">
+           Size: ${file.fileSize} | Modified: ${new Date(file.lastModified).toLocaleString()}
+           </div>
+        </div>
+         <div class="controls">
+         <span class="status"></span>
+              <a class="btn btn-download" href="${file.downloadURL}">Download</a>
+          </div>
+      </li>
+     `;
+    });
+    groupLi.innerHTML = `
+                        <div class="dataset-id">Dataset ${datasetID}</div>
+                        <ul class="file-list">${fileHtml}</ul>
+                    `;
+    container.appendChild(groupLi);
+   }
+  } catch (error) {
+   container.innerHTML = '<li style="color:red;">Failed to connect to API.</li>';
+  }
+ }
+ window.onload = fetchFileDetails;
+</script>
+
+</body>
+</html>
