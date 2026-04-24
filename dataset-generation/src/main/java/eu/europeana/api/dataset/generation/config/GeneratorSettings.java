@@ -16,8 +16,9 @@ import java.time.format.DateTimeFormatter;
  * @since 23 Feb 2026
  */
 @Configuration
-@PropertySource("classpath:dataset.generation.properties")
-@PropertySource(value = "classpath:dataset.generation.user.properties", ignoreResourceNotFound = true)
+@PropertySource(
+        value = {"classpath:dataset.generation.properties", "classpath:dataset.generation.user.properties"},
+        ignoreResourceNotFound = true)
 public class GeneratorSettings {
 
     @Value("${search.api.url}")
