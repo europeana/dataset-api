@@ -1,6 +1,6 @@
 services:
   app:
-    image: ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}
+    image: ${DATASET_SERVING_DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}
     container_name: dataset-api
     #For running on windows , the path needs to start with drive e.g. C:/opt/app/storage
     volumes:
@@ -13,3 +13,19 @@ services:
         # Provision to override the property
       - DATASET_STORAGE_PATH_LOCAL=${LOCAL_STORAGE_PATH}
     restart: always
+
+  job:
+    image:  ${DATASET_GENERATION_DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}
+
+    # no ports (correct for a cron job)
+    volumes:
+      - "${HOST_STORAGE_PATH}:${LOCAL_STORAGE_PATH}"
+
+      # secret config (NOT in image, only mounted at runtime) read-only
+      - "./job/dataset-generation.properties:/opt/app/config/dataset-generation.properties:ro"
+
+    environment:
+      - DATASET_STORAGE_PATH_LOCAL=${LOCAL_STORAGE_PATH}
+      - SPRING_CONFIG_ADDITIONAL_LOCATION=/opt/app/config/
+
+    restart: "no"

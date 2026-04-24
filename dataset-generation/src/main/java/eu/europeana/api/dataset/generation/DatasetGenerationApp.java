@@ -74,7 +74,15 @@ public class DatasetGenerationApp extends TaskletSupport {
             LOG.info("Forced harvest of all the datasets. datasetsToHarvest: {}", settings.getDatasetToHarvest() );
         }
 
-        List<Dataset> datasetToSchedule = searchApiDatasetReader.getDataset(lastHarvestDate);
+        // List<Dataset> datasetToSchedule = searchApiDatasetReader.getDataset(lastHarvestDate);
+
+
+        List<Dataset> datasetToSchedule = new ArrayList<>();
+        //  datasetToSchedule.add(new Dataset("1536",1623 ));
+        datasetToSchedule.add(new Dataset("1533",1 ));
+        datasetToSchedule.add(new Dataset("536",392 ));
+        datasetToSchedule.add(new Dataset("1514",4 ));
+        datasetToSchedule.add(new Dataset("1524",1 ));
 
         scheduleDatasetService.scheduleDatasetsForDownload(datasetToSchedule);
         datasetGenerationExecutor.runScheduledDatasets();

@@ -55,7 +55,7 @@
 
     <build>
         <!--this removes the version number from the deployed archive-->
-        <finalName>${project.parent.artifactId}</finalName>
+        <finalName>${artifactId}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
