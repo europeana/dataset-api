@@ -20,7 +20,6 @@ import org.springframework.context.event.EventListener;
 import java.util.*;
 
 import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.BEAN_BATCH_SCHEDULED_DATASET_SERVICE;
-import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.LAST_HARVEST_DATE_BEAN;
 
 /**
  * Main application. Allows deploying as a war and logs instance data when deployed in Cloud Foundry
@@ -44,8 +43,6 @@ public class DatasetGenerationApp extends TaskletSupport {
     @Resource
     GeneratorSettings settings;
 
-    @Resource(name = LAST_HARVEST_DATE_BEAN)
-    Date lastHarvestDate;
 
     /**
      * Starts the application workflow for dataset generation. This method is triggered upon the application
@@ -64,6 +61,8 @@ public class DatasetGenerationApp extends TaskletSupport {
     @EventListener(ApplicationReadyEvent.class)
     public void start() throws EuropeanaApiException {
         LOG.info("Starting Dataset Generation App ...");
+
+        Date lastHarvestDate = TaskletSupport.getLastHarvestDate(settings.getLastHarvestDateFile());
 
         if (lastHarvestDate == null) {
             LOG.info("No previous harvest date found, All the datasets will be harvested .....");

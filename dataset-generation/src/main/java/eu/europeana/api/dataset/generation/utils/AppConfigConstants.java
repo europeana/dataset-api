@@ -14,7 +14,7 @@ public interface AppConfigConstants {
     String SCHEDULED_DATASET_WRITER              = "scheduledDatasetWriter";
     String SLACK_CONNECTION_BEAN                 = "slackConnection";
     String DATA_FORMATS_BEAN                     = "dataFormats";
-    String LAST_HARVEST_DATE_BEAN                = "lastHarvestDate";
+    String STATUS_REPORT_CSV_PATH_BEAN           = "statusReportCsvPath";
 
     // other constants
     String CSV_REPORT_HEADER                     = "DatasetId,FileStatus,TotalRecords,FailedRecord";

@@ -95,13 +95,6 @@ public class GeneratorSettings {
         return getDatasetsFolder() + snapshotFile;
     }
 
-    public String getCsvReportPath() {
-        return getDatasetsFolder() +
-                "status_" +
-                LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd")) +
-                ".csv";
-    }
-
     public String getFailedSetsFile() {
         return getDatasetsFolder() + "failed-sets.txt";
     }
