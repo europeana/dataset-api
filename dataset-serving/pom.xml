@@ -11,9 +11,9 @@
     </parent>
 
     <artifactId>dataset-serving</artifactId>
-    <version>1.0-SNAPSHOT</version>
     <name>Dataset Serving API</name>
     <description>Europeana Dataset API serving module</description>
+    <version>0.1-SNAPSHOT</version>
     <packaging>war</packaging>
 
     <properties>
