@@ -10,7 +10,7 @@ services:
     volumes:
       - "${HOST_STORAGE_PATH}:${LOCAL_STORAGE_PATH}"
       # Read-only mount for external config
-      -  "/opt/app/config/:/opt/app/config/:ro"
+      -  "./config:/opt/app/config/:ro"
     environment:
       - SERVER_PORT=8080
         # Provision to override the property
