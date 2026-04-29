@@ -18,11 +18,12 @@ public interface DataFormatter {
      * The method transforms the metadata into a specific output format and streams the formatted
      * content to the given output stream.
      *
+     * @param recordId the identifier of the record being written
      * @param metadata the {@link Document} containing metadata to be formatted and written
      * @param zipOut the {@link OutputStream} to which the formatted metadata is written
      * @throws EuropeanaApiException if an error occurs during the metadata transformation or writing process
      */
-    void write(Document metadata, OutputStream zipOut) throws EuropeanaApiException;
+    void write(String recordId, Document metadata, OutputStream zipOut) throws EuropeanaApiException;
 
     /**
      * Retrieves the file extension associated with the output format handled by this formatter.

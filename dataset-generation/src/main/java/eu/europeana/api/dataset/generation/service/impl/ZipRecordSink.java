@@ -47,7 +47,7 @@ public class ZipRecordSink implements RecordSink, Closeable {
             String entryName = (recordId != null ? getDirectoryName(recordId) : "record_" + counter) + formatter.getFileExtension();
             ZipEntry entry = new ZipEntry(entryName);
             zipOut.putNextEntry(entry);
-            formatter.write(record.metadata, zipOut);
+            formatter.write(recordId, record.metadata, zipOut);
             zipOut.closeEntry();
             counter++;
         } catch (IOException e) {
