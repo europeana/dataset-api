@@ -13,3 +13,6 @@ dataset.files.location=
 snapshot.file=datasets_snapshot.txt
 
 slack.webhook=
+
+## Can be set to ALL/all for a force harvest of all datasets. Also specific datasets can be set here. Example : 1533, 536, 1514, 1524
+dataset.to.harvest=

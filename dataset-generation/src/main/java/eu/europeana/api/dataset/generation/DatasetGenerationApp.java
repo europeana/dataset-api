@@ -8,6 +8,7 @@ import eu.europeana.api.dataset.generation.reader.SearchApiDatasetReader;
 import eu.europeana.api.dataset.generation.service.DatasetGenerationExecutor;
 import eu.europeana.api.dataset.generation.service.ScheduleDatasetService;
 import jakarta.annotation.Resource;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.boot.WebApplicationType;
@@ -43,7 +44,6 @@ public class DatasetGenerationApp extends TaskletSupport {
     @Resource
     GeneratorSettings settings;
 
-
     /**
      * Starts the application workflow for dataset generation. This method is triggered upon the application
      * being fully initialized and ready to process.
@@ -52,6 +52,9 @@ public class DatasetGenerationApp extends TaskletSupport {
      *
      * 1. Retrieves the last harvest date from a specified file to determine the datasets to be processed.
      *    - If no last harvest date is found, logs a message indicating that all datasets will be harvested.
+     *    - If a forced harvest is specified, logs a message indicating that all/ALL datasets will be harvested.
+     *    -If a specific set of datasets is specified, logs a message indicating which datasets will be harvested.
+     *
      * 2. Reads datasets from the Search API based on the retrieved last harvest date.
      * 3. Maps the response and stores into H2 (in memory DB)
      * 4. Executes the scheduled dataset processing using the dataset generation executor.
@@ -62,29 +65,10 @@ public class DatasetGenerationApp extends TaskletSupport {
     public void start() throws EuropeanaApiException {
         LOG.info("Starting Dataset Generation App ...");
 
-        Date lastHarvestDate = TaskletSupport.getLastHarvestDate(settings.getLastHarvestDateFile());
+        Date lastHarvestDate = resolveLastHarvestDate();
+        List<Dataset> datasetsToSchedule = fetchDatasets(lastHarvestDate);
 
-        if (lastHarvestDate == null) {
-            LOG.info("No previous harvest date found, All the datasets will be harvested .....");
-        }
-
-        if (settings.isForceHarvest()) {
-            lastHarvestDate = null;
-            LOG.info("Forced harvest of all the datasets. datasetsToHarvest: {}", settings.getDatasetToHarvest() );
-        }
-
-
-        // List<Dataset> datasetToSchedule = searchApiDatasetReader.getDataset(lastHarvestDate);
-
-
-        List<Dataset> datasetToSchedule = new ArrayList<>();
-        //  datasetToSchedule.add(new Dataset("1536",1623 ));
-        datasetToSchedule.add(new Dataset("1533",1 ));
-        datasetToSchedule.add(new Dataset("536",392 ));
-        datasetToSchedule.add(new Dataset("1514",4 ));
-        datasetToSchedule.add(new Dataset("1524",1 ));
-
-        scheduleDatasetService.scheduleDatasetsForDownload(datasetToSchedule);
+        scheduleDatasetService.scheduleDatasetsForDownload(datasetsToSchedule);
         datasetGenerationExecutor.runScheduledDatasets();
     }
 
@@ -116,5 +100,53 @@ public class DatasetGenerationApp extends TaskletSupport {
 //
         context.close();
         System.exit(0);
+    }
+
+
+    /**
+     * Resolves the last harvest date to determine the datasets that need to be processed.
+     *
+     * @return The last harvest date retrieved from the specified file. Returns {@code null}
+     *         if a forced harvest is specified or no previous harvest date is found.
+     */
+    private Date resolveLastHarvestDate() {
+        if (settings.isForceHarvest()) {
+            LOG.info("Forced harvest of all datasets. datasetsToHarvest: {}", settings.getDatasetToHarvest());
+            return null;
+        }
+
+        Date lastHarvestDate = TaskletSupport.getLastHarvestDate(settings.getLastHarvestDateFile());
+        if (lastHarvestDate == null) {
+            LOG.info("No previous harvest date found, all datasets will be harvested.");
+        }
+        return lastHarvestDate;
+    }
+
+    /**
+     * Fetches datasets based on the provided last harvest date or a specific set of datasets
+     * specified in the application settings.
+     *
+     * If the application settings contain a non-blank list of datasets to harvest, only those
+     * datasets will be fetched. Otherwise, datasets modified after the provided last harvest
+     * date will be retrieved.
+     *
+     * @param lastHarvestDate The date used to filter datasets modified after this date. If null,
+     *                        all available datasets are considered.
+     * @return A list of {@code Dataset} objects representing the datasets retrieved from the
+     *         Search API.
+     * @throws EuropeanaApiException If an error occurs while interacting with the Search API.
+     */
+    private List<Dataset> fetchDatasets(Date lastHarvestDate) throws EuropeanaApiException {
+        if (StringUtils.isNotBlank(settings.getDatasetToHarvest())) {
+            List<String> datasetsToHarvest =
+                    Arrays.stream(settings.getDatasetToHarvest().split(","))
+                            .map(String::trim)
+                            .toList();
+
+            LOG.info("Harvest specific datasets: {}", datasetsToHarvest);
+            return searchApiDatasetReader.getDataset(null, datasetsToHarvest);
+        }
+
+        return searchApiDatasetReader.getDataset(lastHarvestDate);
     }
 }

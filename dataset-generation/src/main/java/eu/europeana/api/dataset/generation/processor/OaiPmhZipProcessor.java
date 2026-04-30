@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.DATA_FORMATS_BEAN;
@@ -53,7 +54,7 @@ public class OaiPmhZipProcessor extends BaseProcessor {
         List<RecordSink> sinks = new ArrayList<>();
 
         for (var entry : formats.entrySet()) {
-            File zipFile = new File(createFolder(entry.getKey().name()), dataset.getDatasetId() + ".zip");
+            File zipFile = new File(createFolder(entry.getKey()), dataset.getDatasetId() + ".zip");
             sinks.add(new ZipRecordSink(dataset.getDatasetId(), zipFile, entry.getValue()));
         }
 
@@ -68,16 +69,30 @@ public class OaiPmhZipProcessor extends BaseProcessor {
     /**
      * Creates a new folder within the datasets directory if it does not already exist.
      *
-     * @param folderName the name of the folder to be created
+     * @param rdfFormat  rdf format of the folder
      * @return the {@link File} object representing the folder
      */
-    private File createFolder(String folderName) {
-        File folder =  new File(settings.getDatasetsFolder(), folderName);
+    private File createFolder(RdfFormat rdfFormat) {
+        File folder =  new File(settings.getDatasetsFolder(), getFolderName(rdfFormat));
 
         if (!folder.exists() ) {
             folder.mkdirs();
         }
         return  folder;
     }
+
+    /**
+     * Determines the folder name based on the provided RDF format.
+     * If the RDF format is XML, the folder name corresponds to the format's name.
+     * Otherwise, the alternative name of the RDF format is used in uppercase.
+     *
+     * This is to synchronize the turtle format folder name to TTL and not TURTLE
+     * @param rdfFormat the RDF format used to determine the folder name
+     * @return the folder name as a string, based on the given RDF format
+     */
+    private String getFolderName(RdfFormat rdfFormat) {
+        return rdfFormat.equals(RdfFormat.XML) ?  rdfFormat.name() : rdfFormat.getExtension().toUpperCase(Locale.ROOT);
+    }
+
 }
 

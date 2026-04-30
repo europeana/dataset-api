@@ -27,9 +27,11 @@ import java.net.URISyntaxException;
 import java.util.*;
 
 import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.SEARCH_RECORD_AUTH_HANDLER;
-import static  eu.europeana.api.dataset.generation.utils.ModelConstants.facets;
+import static eu.europeana.api.dataset.generation.utils.ModelConstants.facets;
+
 /**
  * This class is responsible for reading datasets from the search API.
+ *
  * @author Srishti Singh
  * @since 23 Feb 2026
  */
@@ -49,7 +51,27 @@ public class SearchApiDatasetReader {
     HttpConnection searchApiClient = new HttpConnection(true);
 
     /**
-     * Reads datasets from the search API based on the provided timestamp update.
+     * Retrieves a list of datasets updated after the given timestamp and filtered
+     * by the specified dataset IDs to harvest.
+     *
+     * @param timestampUpdate   The timestamp to filter datasets. Only datasets updated after
+     *                          this timestamp will be included.
+     * @param datasetsToHarvest A list of dataset IDs to filter the datasets. If the list is
+     *                          empty, no filtering by dataset ID will be applied.
+     * @return A list of datasets that match the update timestamp and dataset ID criteria.
+     * @throws EuropeanaApiException If an error occurs during dataset retrieval or filtering.
+     */
+    public List<Dataset> getDataset(Date timestampUpdate, List<String> datasetsToHarvest) throws EuropeanaApiException {
+        List<Dataset> datasets = getDataset(timestampUpdate);
+        if (datasetsToHarvest.size() > 0) {
+            datasets.removeIf(dataset -> !datasetsToHarvest.contains(dataset.getDatasetId()));
+        }
+        return datasets;
+    }
+
+    /**
+     * Reads datasets from the search API based on the provided timestamp update
+     *
      * @param timestampUpdate The timestamp update to filter datasets.
      * @return List of datasets retrieved from the search API.
      * @throws EuropeanaApiException If there's an error during API interaction.
@@ -71,8 +93,8 @@ public class SearchApiDatasetReader {
                         JSONObject field = fields.getJSONObject(i);
                         //set names from solr are in the form of <setId>_<setName> so we split
                         datasets.add(new Dataset(
-                                StringUtils.substringBefore(field.getString("label"), "_"),
-                                field.getLong("count")));
+                                StringUtils.substringBefore(field.getString("label"), "_")
+                                , field.getLong("count")));
                     }
                 }
             } else {
