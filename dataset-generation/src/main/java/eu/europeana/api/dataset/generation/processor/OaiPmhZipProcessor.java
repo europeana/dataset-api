@@ -13,6 +13,10 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -52,16 +56,28 @@ public class OaiPmhZipProcessor extends BaseProcessor {
     ScheduledDataset doProcessing(ScheduledDataset dataset) throws Exception {
 
         List<RecordSink> sinks = new ArrayList<>();
+        List<Path> tempFiles = new ArrayList<>();
+        List<Path> targetFiles = new ArrayList<>();
 
         for (var entry : formats.entrySet()) {
-            File zipFile = new File(createFolder(entry.getKey()), dataset.getDatasetId() + ".zip");
-            sinks.add(new ZipRecordSink(dataset.getDatasetId(), zipFile, entry.getValue()));
+            Path dir = createFolder(entry.getKey()).toPath();
+
+            Path target = dir.resolve(dataset.getDatasetId() + ".zip");
+            Path temp = Files.createTempFile(dir, dataset.getDatasetId() + ".", ".zip.tmp");
+
+            tempFiles.add(temp);
+            targetFiles.add(target);
+
+            sinks.add(new ZipRecordSink(dataset.getDatasetId(), temp.toFile(), entry.getValue()));
         }
 
         try (MultiRecordSink multiSink = new MultiRecordSink(sinks)) {
             long failedRecords = listRecordService.streamRecords(dataset, multiSink);
             scheduleDatasetService.updateFailedRecords(dataset, failedRecords); // update failedRecords and hasBeenProcessed
         }
+
+        // 🔥 Atomic swap happens ONLY after all sinks are closed
+        performAtomicSwap(tempFiles, targetFiles);
 
         return dataset;
     }

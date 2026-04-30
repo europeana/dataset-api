@@ -97,7 +97,6 @@ public class DatasetGenerationApp extends TaskletSupport {
 
         // 😈 wait for completion of scheduled tasks execution
        // TODO ADD logic to await for the scheduled dataset completion
-//
         context.close();
         System.exit(0);
     }
