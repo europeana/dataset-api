@@ -137,8 +137,8 @@ public class TaskletSupport {
     public static String buildTable(Path csvPath, int maxRows) throws IOException {
         StringBuilder sb = new StringBuilder();
 
-        sb.append(String.format("%-12s %-10s %-10s %-10s%n",
-                "ID", "Status", "Total", "Failed"));
+        sb.append(String.format("%-15s %-15s %-15s %-15s%n\n",
+                "Dataset", "Status", "Total Records", "Failed Records"));
 
         try (Stream<String> lines = Files.lines(csvPath)) {
             Iterator<String> it = lines.skip(1).iterator();
@@ -146,7 +146,7 @@ public class TaskletSupport {
 
             while (it.hasNext() && count < maxRows) {
                 String[] c = it.next().split(",");
-                sb.append(String.format("%-12s %-10s %-10s %-10s%n",
+                sb.append(String.format("%-15s %-15s %-15s %-15s%n",
                         c[0], c[1], c[2], c[3]));
 
                 count++;
