@@ -6,10 +6,10 @@ import java.util.Map;
 
 /**
  * Enum Representing valid file extensions allowed to download data-sets along with their file type.
- * The 'label' for file type also represents the 'folder name' inside which that particular type of file archives are available.
+ * The 'label' for file type also represents the 'folder name' inside which that particular type of file archives should be available.
  */
 public enum FileTypes {
-    XML("XML"), TTL("TURTLE");
+    XML("XML"), TTL("TTL");
 
     private static final Map<String, String> fileExtensions = new HashMap<>();
     static {
