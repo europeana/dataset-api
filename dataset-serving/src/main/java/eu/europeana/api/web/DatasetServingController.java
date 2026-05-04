@@ -74,7 +74,7 @@ public class DatasetServingController {
                  String directoryPath = config.getDataSetLocalStoragePath() + extension.label;
                  Path directory = Paths.get(directoryPath);
                  if (!Files.exists(directory) || !Files.isDirectory(directory)) {
-                     LOG.log(Level.ERROR,"Invalid Path {0}", directoryPath);
+                     LOG.log(Level.ERROR,"Invalid Path {}", directoryPath);
                      continue;
                  }
 
