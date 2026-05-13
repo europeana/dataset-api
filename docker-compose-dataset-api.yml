@@ -17,3 +17,10 @@ services:
       - DATASET_STORAGE_PATH_LOCAL=${LOCAL_STORAGE_PATH}
         # Spring Boot additional config location
       - SPRING_CONFIG_ADDITIONAL_LOCATION=file:/opt/app/config/dataset.serving.user.properties
+    logging:
+      driver: "fluentd"
+      options:
+        #fluend address in the form 'host:port'
+        fluentd-address: "${FLUENTD_ADDRESS}"
+        # prevent container crash if fluentd is down
+        fluentd-async: "true"
