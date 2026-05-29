@@ -77,8 +77,9 @@ public record TurtleFormatter(TransformerFactory transformerFactory) implements 
             return m;
         } catch (Exception e) {
              // for all invalid jena errors, skip those records and Log them
+            // TODO add stacktrace later
             if (e instanceof JenaException) {
-                LOG.error("Invalid data found  - " + e.getMessage(), e);
+                LOG.error("Invalid data found  - " + e.getMessage());
                 return null;
             }
             throw new DataFormatterException("Error converting document to Jena model - " + e.getMessage(), e);
