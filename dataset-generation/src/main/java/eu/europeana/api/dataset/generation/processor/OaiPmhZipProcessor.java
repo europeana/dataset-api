@@ -13,8 +13,13 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.DATA_FORMATS_BEAN;
@@ -51,10 +56,19 @@ public class OaiPmhZipProcessor extends BaseProcessor {
     ScheduledDataset doProcessing(ScheduledDataset dataset) throws Exception {
 
         List<RecordSink> sinks = new ArrayList<>();
+        List<Path> tempFiles = new ArrayList<>();
+        List<Path> targetFiles = new ArrayList<>();
 
         for (var entry : formats.entrySet()) {
-            File zipFile = new File(createFolder(entry.getKey().name()), dataset.getDatasetId() + ".zip");
-            sinks.add(new ZipRecordSink(dataset.getDatasetId(), zipFile, entry.getValue()));
+            Path dir = createFolder(entry.getKey()).toPath();
+
+            Path target = dir.resolve(dataset.getDatasetId() + ".zip");
+            Path temp = Files.createTempFile(dir, dataset.getDatasetId() + ".", ".zip.tmp");
+
+            tempFiles.add(temp);
+            targetFiles.add(target);
+
+            sinks.add(new ZipRecordSink(dataset.getDatasetId(), temp.toFile(), entry.getValue()));
         }
 
         try (MultiRecordSink multiSink = new MultiRecordSink(sinks)) {
@@ -62,22 +76,39 @@ public class OaiPmhZipProcessor extends BaseProcessor {
             scheduleDatasetService.updateFailedRecords(dataset, failedRecords); // update failedRecords and hasBeenProcessed
         }
 
+        // 🔥 Atomic swap happens ONLY after all sinks are closed
+        performAtomicSwap(tempFiles, targetFiles);
+
         return dataset;
     }
 
     /**
      * Creates a new folder within the datasets directory if it does not already exist.
      *
-     * @param folderName the name of the folder to be created
+     * @param rdfFormat  rdf format of the folder
      * @return the {@link File} object representing the folder
      */
-    private File createFolder(String folderName) {
-        File folder =  new File(settings.getDatasetsFolder(), folderName);
+    private File createFolder(RdfFormat rdfFormat) {
+        File folder =  new File(settings.getDatasetsFolder(), getFolderName(rdfFormat));
 
         if (!folder.exists() ) {
             folder.mkdirs();
         }
         return  folder;
     }
+
+    /**
+     * Determines the folder name based on the provided RDF format.
+     * If the RDF format is XML, the folder name corresponds to the format's name.
+     * Otherwise, the alternative name of the RDF format is used in uppercase.
+     *
+     * This is to synchronize the turtle format folder name to TTL and not TURTLE
+     * @param rdfFormat the RDF format used to determine the folder name
+     * @return the folder name as a string, based on the given RDF format
+     */
+    private String getFolderName(RdfFormat rdfFormat) {
+        return rdfFormat.equals(RdfFormat.XML) ?  rdfFormat.name() : rdfFormat.getExtension().toUpperCase(Locale.ROOT);
+    }
+
 }
 

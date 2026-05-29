@@ -15,6 +15,7 @@ import eu.europeana.api.dataset.generation.listener.ScheduledDatasetItemListener
 import eu.europeana.api.dataset.generation.model.JobParameter;
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
 import eu.europeana.api.dataset.generation.processor.DatasetDeletionTasklet;
+import eu.europeana.api.dataset.generation.processor.TaskletSupport;
 import eu.europeana.api.dataset.generation.reader.ScheduledDatasetDbReaderJdbc;
 import eu.europeana.api.dataset.generation.reader.SearchApiDatasetReader;
 import eu.europeana.api.dataset.generation.service.ScheduleDatasetService;
@@ -47,14 +48,12 @@ import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
 import javax.xml.transform.TransformerFactory;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.File;
+import java.nio.file.*;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.*;
 
@@ -193,7 +192,7 @@ public class AppAutoConfig {
     public DatasetDeletionTasklet getDeletionTasklet() {
         return  new DatasetDeletionTasklet(
                 settings.getSnapshotFile(),
-                settings.getCsvReportPath(),
+                getStatusReportCsvPath(),
                 applicationContext.getBean(SearchApiDatasetReader.class),
                 new FileDeletionService(settings.getDatasetsFolder())) ;
     }
@@ -248,7 +247,7 @@ public class AppAutoConfig {
     public DatasetReportListener getdDatasetReportListener() {
         return new DatasetReportListener(
                 settings.isForceHarvest(),
-                getLastHarvestDate(),
+                TaskletSupport.getLastHarvestDate(settings.getLastHarvestDateFile()),
                 settings.getSnapshotFile(),
                 settings.getDatasetsFolder());
     }
@@ -265,7 +264,7 @@ public class AppAutoConfig {
         FlatFileItemWriter<ScheduledDataset> writer = new FlatFileItemWriter<>();
 
         writer.setName("DatasetStatusReport");
-        writer.setResource(new FileSystemResource(settings.getCsvReportPath()));
+        writer.setResource(new FileSystemResource(getStatusReportCsvPath()));
         writer.setAppendAllowed(true);
 
         writer.setHeaderCallback(w -> w.write(CSV_REPORT_HEADER));
@@ -305,24 +304,30 @@ public class AppAutoConfig {
         return aggregator;
     }
 
-    /**
-     * Retrieves the last harvest date from the specified file. The file is expected to contain
-     * a single ISO-8601 formatted date string. If the file cannot be read or contains invalid
-     * data, an error is logged and null is returned.
-     *
-     * @return the last harvest date as a {@link Date} object if successfully parsed, or null
-     *         if an error occurs or the date is invalid.
-     */
-    @Bean(LAST_HARVEST_DATE_BEAN)
-    public  Date getLastHarvestDate()  {
-        try {
-            String content = Files.readString(Path.of(settings.getLastHarvestDateFile())).trim();
-            return Date.from(Instant.parse(content));
-        } catch (IOException e) {
-            LOG.error("Error reading last harvest date file - {}", e.getMessage());
-        }
-        return null;
-    }
 
+    /**
+     * Generates an absolute file path for a CSV report within the specified directory.
+     * The method ensures the generated file name does not overwrite any existing file
+     * by appending an incremented counter if a file with the same base name exists.
+     *
+     * @return the absolute path of the generated CSV report file.
+     */
+    @Bean(STATUS_REPORT_CSV_PATH_BEAN)
+    public String getStatusReportCsvPath() {
+        String baseName = "status_" +
+                LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd"));
+        String extension = ".csv";
+
+        File file = new File(settings.getDatasetsFolder() + baseName + extension);
+
+        int counter = 1;
+        while (file.exists()) {
+            file = new File(settings.getDatasetsFolder() + baseName + "_" + counter + extension);
+            counter++;
+        }
+
+        LOG.info("Status report CSV file path: {}", file.getAbsolutePath());
+        return file.getAbsolutePath();
+    }
 
 }

@@ -10,11 +10,10 @@ import eu.europeana.api.dataset.generation.format.DataFormatter;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdfxml.xmlinput1.DOM2Model;
+import org.apache.jena.shared.JenaException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.w3c.dom.Document;
-import org.xml.sax.SAXParseException;
-
 import javax.xml.transform.TransformerFactory;
 
 /**
@@ -40,7 +39,7 @@ public record TurtleFormatter(TransformerFactory transformerFactory) implements 
 
     // TODO find a solution to not close zip
     @Override
-    public void write(Document metadata, OutputStream zipOut) throws EuropeanaApiException {
+    public void write(String recordId, Document metadata, OutputStream zipOut) throws EuropeanaApiException {
         OutputStream safeOut = new FilterOutputStream(zipOut) {
             @Override
             public void close() throws IOException {
@@ -49,9 +48,16 @@ public record TurtleFormatter(TransformerFactory transformerFactory) implements 
         };
 
         try (TurtleRecordWriter writer = new TurtleRecordWriter(safeOut)) {
-            writer.write(toModel(metadata));
+            Model m = toModel(metadata);
+           if (m != null) {
+               writer.write(m);
+           } else {
+               LOG.error("Skipping record - {} , due to invalid data found - " , recordId);
+           }
         } catch (IOException e) {
             throw new DataFormatterException("Error writing the metadata in turtle format " + e.getMessage(), e);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+           LOG.error("Error disabling the errorForSpaceInURI field in ReaderRDFXML_ARP1 for the TurtleRecordWriter " + e.getMessage(), e);
         }
     }
 
@@ -69,7 +75,12 @@ public record TurtleFormatter(TransformerFactory transformerFactory) implements 
             DOM2Model dom2Model = DOM2Model.createD2M("", m);
             dom2Model.load(doc);
             return m;
-        } catch (SAXParseException e) {
+        } catch (Exception e) {
+             // for all invalid jena errors, skip those records and Log them
+            if (e instanceof JenaException) {
+                LOG.error("Invalid data found  - " + e.getMessage(), e);
+                return null;
+            }
             throw new DataFormatterException("Error converting document to Jena model - " + e.getMessage(), e);
         }
     }

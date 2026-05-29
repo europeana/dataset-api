@@ -26,7 +26,7 @@ import java.io.OutputStream;
 public record XMLFormatter(TransformerFactory transformerFactory) implements DataFormatter {
 
     @Override
-    public void write(Document metadata, OutputStream zipOut) throws EuropeanaApiException {
+    public void write(String recordId, Document metadata, OutputStream zipOut) throws EuropeanaApiException {
         try {
             Transformer transformer = transformerFactory.newTransformer();
             transformer.transform(new DOMSource(metadata), new StreamResult(zipOut));

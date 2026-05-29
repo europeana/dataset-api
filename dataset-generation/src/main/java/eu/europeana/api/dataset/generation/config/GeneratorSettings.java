@@ -16,8 +16,9 @@ import java.time.format.DateTimeFormatter;
  * @since 23 Feb 2026
  */
 @Configuration
-@PropertySource("classpath:dataset.generation.properties")
-@PropertySource(value = "classpath:dataset.generation.user.properties", ignoreResourceNotFound = true)
+@PropertySource(
+        value = {"classpath:dataset.generation.properties", "classpath:dataset.generation.user.properties"},
+        ignoreResourceNotFound = true)
 public class GeneratorSettings {
 
     @Value("${search.api.url}")
@@ -94,19 +95,18 @@ public class GeneratorSettings {
         return getDatasetsFolder() + snapshotFile;
     }
 
-    public String getCsvReportPath() {
-        return getDatasetsFolder() +
-                "status_" +
-                LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd")) +
-                ".csv";
-    }
-
     public String getFailedSetsFile() {
         return getDatasetsFolder() + "failed-sets.txt";
     }
 
+    /**
+     * Determines if the harvest should be forced for all datasets.
+     * Checks whether the dataset to harvest is set to "ALL", ignoring case.
+     *
+     * @return true if the dataset to harvest is "ALL", false otherwise.
+     */
     public boolean isForceHarvest() {
-        return StringUtils.equalsIgnoreCase(getDatasetToHarvest(),  "ALL");
+        return StringUtils.isNotEmpty(getDatasetToHarvest()) && StringUtils.equalsIgnoreCase(getDatasetToHarvest(),  "ALL");
     }
 
     public String getLastHarvestDateFile() {

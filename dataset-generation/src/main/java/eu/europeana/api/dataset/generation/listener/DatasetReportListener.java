@@ -133,6 +133,8 @@ public class DatasetReportListener extends TaskletSupport   {
     }
 
 
+    // TODO now with ATOMIC_SWAP , creation date will be updated as well everytime,
+    //  so we probably need to remove that and only rely on modified_date
     public class FileMetadata {
         private final Date creationDate;
         private final Date modifiedDate;

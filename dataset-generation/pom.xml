@@ -14,7 +14,7 @@
     <name>Dataset Generation API</name>
     <description>Europeana Dataset API generation module</description>
     <version>0.1-SNAPSHOT</version>
-    <packaging>war</packaging>
+    <packaging>jar</packaging>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
@@ -75,6 +75,8 @@
 </dependencies>
 
     <build>
+        <!--this removes the version number from the deployed archive-->
+        <finalName>${artifactId}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

@@ -10,10 +10,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
+import java.time.Instant;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -23,6 +21,25 @@ import static eu.europeana.api.dataset.generation.model.DatasetStatus.*;
 public class TaskletSupport {
 
     private static final Logger LOG = LogManager.getLogger(TaskletSupport.class);
+
+
+    /**
+     * Retrieves the last harvest date from the specified file. The file is expected to contain
+     * a single ISO-8601 formatted date string. If the file cannot be read or contains invalid
+     * data, an error is logged and null is returned.
+     *
+     * @return the last harvest date as a {@link Date} object if successfully parsed, or null
+     *         if an error occurs or the date is invalid.
+     */
+    public static Date getLastHarvestDate(String lastHarvestFile)  {
+        try {
+            String content = Files.readString(Path.of(lastHarvestFile)).trim();
+            return Date.from(Instant.parse(content));
+        } catch (IOException e) {
+            LOG.error("Error reading last harvest date file - {}", e.getMessage());
+        }
+        return null;
+    }
 
     /**
      * Loads a snapshot of dataset identifiers from a file. If the file does not exist,
@@ -120,8 +137,8 @@ public class TaskletSupport {
     public static String buildTable(Path csvPath, int maxRows) throws IOException {
         StringBuilder sb = new StringBuilder();
 
-        sb.append(String.format("%-12s %-10s %-10s %-10s%n",
-                "ID", "Status", "Total", "Failed"));
+        sb.append(String.format("%-15s %-15s %-15s %-15s%n\n",
+                "Dataset", "Status", "Total Records", "Failed Records"));
 
         try (Stream<String> lines = Files.lines(csvPath)) {
             Iterator<String> it = lines.skip(1).iterator();
@@ -129,7 +146,7 @@ public class TaskletSupport {
 
             while (it.hasNext() && count < maxRows) {
                 String[] c = it.next().split(",");
-                sb.append(String.format("%-12s %-10s %-10s %-10s%n",
+                sb.append(String.format("%-15s %-15s %-15s %-15s%n",
                         c[0], c[1], c[2], c[3]));
 
                 count++;

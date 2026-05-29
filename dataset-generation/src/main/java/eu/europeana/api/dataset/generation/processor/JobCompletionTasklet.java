@@ -1,5 +1,6 @@
 package eu.europeana.api.dataset.generation.processor;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.europeana.api.commons_sb3.slack.SlackConnection;
 import eu.europeana.api.dataset.generation.config.GeneratorSettings;
 import eu.europeana.api.dataset.generation.service.ScheduleDatasetService;
@@ -25,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.STATUS_REPORT_CSV_PATH_BEAN;
+
 /**
  * The DatasetReportTasklet class is a Spring Batch Tasklet implementation that performs two main tasks:
  * - Updates the last harvest date to a file in the specified location.
@@ -41,6 +44,8 @@ public class JobCompletionTasklet extends TaskletSupport implements Tasklet {
 
     public static final String HARVEST_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'Z'";
 
+    private ObjectMapper objectMapper = new ObjectMapper();
+
     @Resource
     SlackConnection slackConnection;
 
@@ -50,11 +55,14 @@ public class JobCompletionTasklet extends TaskletSupport implements Tasklet {
     @Resource
     ScheduleDatasetService scheduleDatasetService;
 
+    @Resource(name = STATUS_REPORT_CSV_PATH_BEAN)
+    String statusReportCsvFile;
+
     @Override
     public @Nullable RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
        updateLastHarvestDate();
        updateFailedSetsFile();
-       slackConnection.publishStatusReport(buildSlackMessage(Path.of(settings.getCsvReportPath())).toString());
+       slackConnection.publishStatusReport(buildSlackMessage());
        LOG.info("Job completed successfully...!!");
        return RepeatStatus.FINISHED;
     }
@@ -120,11 +128,11 @@ public class JobCompletionTasklet extends TaskletSupport implements Tasklet {
      * The message includes a dataset report header, a summary of status counts,
      * and a preview of a table containing dataset information.
      *
-     * @param csvPath the path to the CSV file containing dataset information
      * @return a map representing the message structure in Slack block format
      * @throws IOException if an error occurs while reading the CSV file
      */
-    public Map<String, Object> buildSlackMessage(Path csvPath) throws IOException {
+    public String buildSlackMessage() throws IOException {
+        Path csvPath = Path.of(statusReportCsvFile);
         Map<String, Long> counts = countStatus(csvPath);
         String table = buildTable(csvPath, 10);// max 10 rows for now, a full report will be attached
         long total = scheduleDatasetService.count();
@@ -137,14 +145,17 @@ public class JobCompletionTasklet extends TaskletSupport implements Tasklet {
 
         blocks.add(section("📊 *Dataset Report*"));  // Header
         blocks.add(section(total + " datasets were processed "));
-        blocks.add(section("Status Overview"));
+        blocks.add(section("Status Overview "));
         blocks.add(section("```" + summary + "```")); // Summary block
+        blocks.add(section("Full report <" + csvPath + "|here>"));
         blocks.add(section("```" + table + "```"));  // Table preview
 
+        String jsonPayload = objectMapper.writeValueAsString(Map.of("blocks", blocks));
+
         if (LOG.isTraceEnabled()) {
-            LOG.trace("Slack message blocks: {}", blocks);
+            LOG.trace("Slack message blocks: {}", jsonPayload);
         }
-        return Map.of("blocks", blocks);
+        return jsonPayload;
     }
 
     /**
