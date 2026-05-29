@@ -110,7 +110,7 @@ public class DatasetGenerationApp extends TaskletSupport {
      */
     private Date resolveLastHarvestDate() {
         if (settings.isForceHarvest()) {
-            LOG.info("Forced harvest of all datasets. datasetsToHarvest: {}", settings.getDatasetToHarvest());
+            LOG.info("Forced harvest of all datasets. datasetsToHarvest set to : {}", settings.getDatasetToHarvest());
             return null;
         }
 
@@ -137,12 +137,14 @@ public class DatasetGenerationApp extends TaskletSupport {
      */
     private List<Dataset> fetchDatasets(Date lastHarvestDate) throws EuropeanaApiException {
         if (StringUtils.isNotBlank(settings.getDatasetToHarvest())) {
-            List<String> datasetsToHarvest =
-                    Arrays.stream(settings.getDatasetToHarvest().split(","))
-                            .map(String::trim)
-                            .toList();
-
-            LOG.info("Harvest specific datasets: {}", datasetsToHarvest);
+            List<String> datasetsToHarvest = new ArrayList<>();
+            if (!settings.isForceHarvest()) {
+                datasetsToHarvest =
+                        Arrays.stream(settings.getDatasetToHarvest().split(","))
+                                .map(String::trim)
+                                .toList();
+                LOG.info("Harvesting specific datasets, datasetsToHarvest set to : {}", datasetsToHarvest);
+            }
             return searchApiDatasetReader.getDataset(null, datasetsToHarvest);
         }
 
