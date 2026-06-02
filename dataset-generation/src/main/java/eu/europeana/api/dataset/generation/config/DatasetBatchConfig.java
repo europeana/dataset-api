@@ -107,7 +107,7 @@ public class DatasetBatchConfig extends DefaultBatchConfiguration {
                 .faultTolerant()
                 .skipPolicy(NOOP_SKIP_POLICY)
                 .taskExecutor(getCustomTaskExecutor())
-               // .throttleLimit(settings.getBatchUpdatesThrottleLimit())
+                .throttleLimit(settings.getBatchUpdatesThrottleLimit())
                 .build();
 
     }
