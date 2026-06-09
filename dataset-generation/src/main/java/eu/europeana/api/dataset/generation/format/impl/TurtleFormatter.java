@@ -7,6 +7,9 @@ import java.io.*;
 import eu.europeana.api.commons_sb3.error.EuropeanaApiException;
 import eu.europeana.api.dataset.generation.exception.DataFormatterException;
 import eu.europeana.api.dataset.generation.format.DataFormatter;
+import jakarta.annotation.PostConstruct;
+import org.apache.jena.irix.IRIProviderAny;
+import org.apache.jena.irix.SystemIRIx;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdfxml.xmlinput1.DOM2Model;
@@ -36,6 +39,15 @@ import javax.xml.transform.TransformerFactory;
 public record TurtleFormatter(TransformerFactory transformerFactory) implements DataFormatter {
 
     private static final Logger LOG = LogManager.getLogger(TurtleFormatter.class);
+
+
+    /**
+     * Sets the IRI provider to allow invalid URIs.
+     */
+    static {
+        LOG.info("Setting the IRI provider to allow invalid URIs");
+        SystemIRIx.setProvider(IRIProviderAny.stringProvider());
+    }
 
     // TODO find a solution to not close zip
     @Override
