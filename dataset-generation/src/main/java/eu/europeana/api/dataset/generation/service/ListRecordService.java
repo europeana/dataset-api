@@ -52,7 +52,7 @@ public class ListRecordService {
     @SuppressWarnings("java:S109")
     public long streamRecords(ScheduledDataset dataset, RecordSink sink) throws EuropeanaApiException, IOException {
         LOG.info("Streaming records for set {}", dataset.getDatasetId());
-        ProgressLogger logger = new ProgressLogger(dataset.getDatasetId(), dataset.getTotalSize(), 30);
+        ProgressLogger logger = new ProgressLogger(dataset.getDatasetId(), dataset.getTotalSize(), settings.getLogInterval());
 
         long counter = 0;
         long failedRecords = 0;

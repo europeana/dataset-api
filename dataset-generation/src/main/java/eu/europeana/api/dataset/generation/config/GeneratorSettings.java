@@ -51,17 +51,38 @@ public class GeneratorSettings {
     @Value("${batch.step.chunkSize: 10}")
     private int batchChunkSize;
 
+    /**
+     * The core pool size says a thread pool executor will start with N number of threads.
+     */
     @Value("${batch.step.updates.executor.corePool: 10}")
     private int batchUpdatesCorePoolSize;
 
-    @Value("${batch.step.updates.executor.maxPool: 100}")
-    private int batchUpdatesMaxPoolSize;
-
-    @Value("${batch.step.updates.executor.queueSize: 50}")
-    private int batchUpdatesQueueSize;
-
+    /**
+     * A throttle-limit T says that, regardless of the number of threads available
+     * in the thread pool (batchUpdatesCorePoolSize), only use T of those threads for a tasklet.
+     */
     @Value("${batch.step.updates.throttleLimit: 10}")
     private int batchUpdatesThrottleLimit;
+
+    /**
+     * If all (batchUpdatesCorePoolSize) threads are busy and new task comes up,
+     * then It will keep tasks in queue.
+     */
+    @Value("${batch.step.updates.executor.queueSize: 30}")
+    private int batchUpdatesQueueSize;
+
+    /*
+    * If queue is full it will create 11th thread and will go till maxPool value.
+     */
+    @Value("${batch.step.updates.executor.maxPool: 25}")
+    private int batchUpdatesMaxPoolSize;
+
+    /**
+     * Progress logger logging interval in seconds
+     * By default 2 minutes (120 seconds)
+     */
+    @Value("${log.interval: 120}")
+    private int logInterval;
 
     public String getSearchApiUrl() {
         return searchApiUrl;
@@ -135,5 +156,9 @@ public class GeneratorSettings {
 
     public int getBatchUpdatesThrottleLimit() {
         return batchUpdatesThrottleLimit;
+    }
+
+    public int getLogInterval() {
+        return logInterval;
     }
 }

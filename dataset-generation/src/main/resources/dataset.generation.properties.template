@@ -16,3 +16,19 @@ slack.webhook=
 
 ## Can be set to ALL/all for a force harvest of all datasets. Also specific datasets can be set here. Example : 1533, 536, 1514, 1524
 dataset.to.harvest=
+
+
+## The number of threads to use for harvesting
+##The core pool size says a thread pool executor will start with N number of threads.
+##A throttle-limit T says that, regardless of the number of threads available in the thread pool,
+##only use T of those threads for a tasklet.
+## throttle limit can not exceed the max core pool size.
+
+batch.step.updates.executor.corePool=
+batch.step.updates.throttleLimit=
+batch.step.updates.executor.maxPool=
+batch.step.updates.executor.queueSize=
+batch.step.chunkSize=
+
+## progress logger log interval
+log.interval=

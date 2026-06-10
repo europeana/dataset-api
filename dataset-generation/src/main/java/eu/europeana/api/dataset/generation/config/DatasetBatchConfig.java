@@ -57,9 +57,6 @@ public class DatasetBatchConfig extends DefaultBatchConfiguration {
     @Resource
     ScheduledDatasetItemListener itemListener;
 
-    @Resource(name = OAI_PMH_ZIP_PROCESSOR)
-    ItemProcessor<ScheduledDataset, ScheduledDataset> processor;
-
     @Resource
     PlatformTransactionManager transactionManager;
 

@@ -118,6 +118,13 @@ public class AppAutoConfig {
         taskExecutor.setCorePoolSize(settings.getBatchUpdatesCorePoolSize());
         taskExecutor.setMaxPoolSize(settings.getBatchUpdatesMaxPoolSize());
         taskExecutor.setQueueCapacity(settings.getBatchUpdatesQueueSize());
+        taskExecutor.setThreadNamePrefix("DatasetGenerationStepExecutor-");
+        taskExecutor.initialize();
+        LOG.info("Dataset generation step executor initialized ..  !! CorePoolSize {}, MaxPoolSize :{}, QueueCapacity :{},  ",
+                settings.getBatchUpdatesCorePoolSize(),
+                settings.getBatchUpdatesMaxPoolSize(),
+                settings.getBatchUpdatesQueueSize());
+
         return taskExecutor;
     }
 
@@ -155,6 +162,9 @@ public class AppAutoConfig {
 
         // set the JDBC setters
         reader.setDataSource(dataSource);
+        // to make the fetch size equals to the reader page size which is the batch Chunk size
+        // Sometimes Spring Batch JDBC still uses a default fetch size (often 10)
+        reader.setFetchSize(settings.getBatchChunkSize());
         // ✅ Correct mapping using aliases
         reader.setRowMapper(new BeanPropertyRowMapper<>(ScheduledDataset.class));
         reader.setQueryProvider();
@@ -163,8 +173,6 @@ public class AppAutoConfig {
         Map<String, Object> params = new HashMap<>();
         params.put(JobParameter.CURRENT_START_TIME.key(), currentStartTime);
         reader.setParameterValues(params);
-
-        LOG.info("ScheduledDatasetDbReaderJdbc initialized ..  !!");
 
         return  reader;
     }
