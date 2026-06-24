@@ -5,6 +5,7 @@ import eu.europeana.api.commons_sb3.slack.SlackConnection;
 import eu.europeana.api.dataset.generation.config.GeneratorSettings;
 import eu.europeana.api.dataset.generation.service.ScheduleDatasetService;
 import jakarta.annotation.Resource;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
@@ -144,10 +145,8 @@ public class JobCompletionTasklet extends TaskletSupport implements Tasklet {
         List<Map<String, Object>> blocks = new ArrayList<>();
 
         blocks.add(section("📊 *Dataset Report*"));  // Header
-        blocks.add(section(total + " datasets were processed "));
-        blocks.add(section("Status Overview "));
+        blocks.add(section(total + " datasets were processed, see full report <" + getFullReportLink(csvPath) + "|here>"));
         blocks.add(section("```" + summary + "```")); // Summary block
-        blocks.add(section("Full report <" + csvPath + "|here>"));
         blocks.add(section("```" + table + "```"));  // Table preview
 
         String jsonPayload = objectMapper.writeValueAsString(Map.of("blocks", blocks));
@@ -156,6 +155,13 @@ public class JobCompletionTasklet extends TaskletSupport implements Tasklet {
             LOG.trace("Slack message blocks: {}", jsonPayload);
         }
         return jsonPayload;
+    }
+
+    private String getFullReportLink(Path csvPath) {
+        if (StringUtils.endsWith(settings.getDatasetServingUrl(), "/")) {
+            return settings.getDatasetServingUrl() + csvPath.getFileName();
+        }
+        return settings.getDatasetServingUrl() + "/" + csvPath.getFileName();
     }
 
     /**

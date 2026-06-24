@@ -2,6 +2,8 @@
 oaipmh.url=
 search.api.url=
 
+##dataset serving url
+dataset.serving.url=
 
 ## keycloak endpoint for access
 europeana.apikey.serviceurl =

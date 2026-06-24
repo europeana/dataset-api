@@ -27,6 +27,9 @@ public class GeneratorSettings {
     @Value("${oaipmh.url}")
     private String oaipmhUrl;
 
+    @Value("${dataset.serving.url}")
+    private String datasetServingUrl;
+
     @Value("${keycloak.token.endpoint}")
     private String keycloakTokenEndpoint;
 
@@ -90,6 +93,10 @@ public class GeneratorSettings {
 
     public String getOaipmhUrl() {
         return oaipmhUrl;
+    }
+
+    public String getDatasetServingUrl() {
+        return datasetServingUrl;
     }
 
     public String getTokenEndpoint() {
