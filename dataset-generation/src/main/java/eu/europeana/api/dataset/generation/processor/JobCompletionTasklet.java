@@ -145,7 +145,7 @@ public class JobCompletionTasklet extends TaskletSupport implements Tasklet {
         List<Map<String, Object>> blocks = new ArrayList<>();
 
         blocks.add(section("📊 *Dataset Report*"));  // Header
-        blocks.add(section(total + " datasets were processed, see full report <" + getFullReportLink(csvPath) + "|here>"));
+        blocks.add(section(total + " datasets were processed, see <" + getFullReportLink(csvPath) + "| full report>"));
         blocks.add(section("```" + summary + "```")); // Summary block
         blocks.add(section("```" + table + "```"));  // Table preview
 
