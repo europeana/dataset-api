@@ -29,8 +29,19 @@ dataset.to.harvest=
 batch.step.updates.executor.corePool=
 batch.step.updates.throttleLimit=
 batch.step.updates.executor.maxPool=
+
+## With a multithreaded Spring Batch step, a queue capacity of 0
+# (or a very small value) tends to give better throughput because
+# tasks are handed directly to worker threads instead of accumulating
+# in the executor queue. Default value is set to 0
 batch.step.updates.executor.queueSize=
-batch.step.chunkSize=
+
+## If LIST-based processing, please use chunk size = 1 (as we have custom atomic reader)
+## If JDBC-based processing, please use chunk size = 10–50 (as we have use JdbcPagingItemReader)
+batch.step.chunkSize=1
 
 ## progress logger log interval
 log.interval=
+
+## the type of reader dataset api will use. Values are JDBC and LIST. By default LIST is used
+spring.batch.reader=LIST

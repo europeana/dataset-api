@@ -63,7 +63,7 @@ public class DatasetGenerationApp extends TaskletSupport {
      */
     @EventListener(ApplicationReadyEvent.class)
     public void start() throws EuropeanaApiException {
-        LOG.info("Starting Dataset Generation App ...");
+        LOG.info("Starting Dataset Generation App with reader type {} ...", settings.getReaderType());
 
         Date lastHarvestDate = resolveLastHarvestDate();
         List<Dataset> datasetsToSchedule = fetchDatasets(lastHarvestDate);

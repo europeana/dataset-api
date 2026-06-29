@@ -104,6 +104,16 @@ public class ScheduleDatasetService {
     }
 
     /**
+     * Retrieves all instances of {@link ScheduledDataset} from the repository.
+     *
+     * @return A list of all {@link ScheduledDataset} objects present in the repository.
+     *         If no objects are available, an empty list is returned.
+     */
+    public List<ScheduledDataset> findAll() {
+        return repository.findAll();
+    }
+
+    /**
      * Marks the provided list of {@link ScheduledDataset} objects as processed by updating
      * their `hasBeenProcessed` status to true in the database.
      *

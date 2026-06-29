@@ -68,8 +68,8 @@ public class ListRecordService {
                         resumptionToken
                 );
 
-                OaiPage response = client.executeAndGetResponse(request);
-//                OaiPage response = executeWithRetry(request);
+//                OaiPage response = client.executeAndGetResponse(request);
+                OaiPage response = executeWithRetry(request);
                 if (response == null) {
                     break;
                 }
@@ -91,8 +91,6 @@ public class ListRecordService {
 
         } catch (URISyntaxException e) {
             throw new DatasetGenerationException("Error creating the ListRecordQuery url - "+e.getMessage(), e);
-        } catch (OaiPmhClientException e) {
-            LOG.error("Error while fetching the response from oai pmh for set: {} - {}", dataset.getDatasetId(), e.getMessage());
         } finally {
             failedRecords = dataset.getTotalSize() - counter;
             LOG.info(
