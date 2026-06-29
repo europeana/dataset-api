@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.time.Duration;
 import java.util.List;
 
 import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.BEAN_OAI_PMH_CLIENT;
@@ -102,10 +103,12 @@ public class ListRecordService {
             );
             sink.close();
         }
+        Duration duration = Duration.ofMillis(System.currentTimeMillis() - start);
         LOG.info(
-                "ListRecords for set {} executed in {} ms. Harvested {} records.",
+                "ListRecords for set {} executed in {} minutes {} seconds. Harvested {} records.",
                 dataset.getDatasetId(),
-                (System.currentTimeMillis() - start),
+                duration.toMinutes(),
+                duration.getSeconds() % 60,
                 counter
         );
         return failedRecords;

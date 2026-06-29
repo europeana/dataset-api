@@ -116,6 +116,7 @@ public class JobCompletionTasklet extends TaskletSupport implements Tasklet {
         try (BufferedWriter writer = Files.newBufferedWriter(Path.of(settings.getFailedSetsFile()))) {
             for(String ds : dataset) {
                 writer.write(ds);
+                writer.write("\n");
             }
         } catch (IOException e) {
            LOG.error("Error writing the {} file ", settings.getFailedSetsFile(), e);
