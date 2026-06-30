@@ -51,7 +51,8 @@ public class ZipRecordSink implements RecordSink, Closeable {
             zipOut.closeEntry();
             counter++;
         } catch (IOException e) {
-            throw new EuropeanaApiException("Error writing record " + recordId + " to zip file - "+ e.getMessage(), e);
+            LOG.error("Error writing record {} to zip - {}", recordId ,  e.getMessage(), e);
+            throw new EuropeanaApiException("Error writing record " + recordId + " to zip - "+ e.getMessage(), e);
         }
 
         if (LOG.isTraceEnabled()) {

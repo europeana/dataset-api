@@ -65,10 +65,7 @@ public class OaiRawStreamingParser {
                 }
 
                 if (IDENTIFIER.equals(localName) && inHeader) {
-                    XMLEvent next = reader.nextEvent();
-                    if (next.isCharacters()) {
-                        currentIdentifier = next.asCharacters().getData();
-                    }
+                    currentIdentifier = readElementText(reader);
                 }
 
                 if (METADATA.equals(localName)) {
@@ -110,6 +107,34 @@ public class OaiRawStreamingParser {
         }
         reader.close();
         return new OaiPage(records, resumptionToken);
+    }
+
+    /**
+     * Reads and returns the text content of an XML element from the provided XML event reader.
+     * The method iterates through the events, extracting character data until the corresponding
+     * end element is encountered.
+     *
+     * @param reader the XML event reader used to read the XML content
+     * @return the trimmed text content of the XML element
+     * @throws XMLStreamException if an error occurs while reading from the XML event reader
+     */
+    private static String readElementText(XMLEventReader reader) throws XMLStreamException {
+        StringBuilder sb = new StringBuilder();
+
+        while (reader.hasNext()) {
+            XMLEvent e = reader.nextEvent();
+
+            if (e.isCharacters()) {
+                sb.append(e.asCharacters().getData());
+            }
+
+            if (e.isEndElement()
+                    && IDENTIFIER.equals(e.asEndElement().getName().getLocalPart())) {
+                break;
+            }
+        }
+
+        return sb.toString().trim();
     }
 
     /**
