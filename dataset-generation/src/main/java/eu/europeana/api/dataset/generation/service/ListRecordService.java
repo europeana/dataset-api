@@ -94,13 +94,16 @@ public class ListRecordService {
             throw new DatasetGenerationException("Error creating the ListRecordQuery url - "+e.getMessage(), e);
         } finally {
             failedRecords = dataset.getTotalSize() - counter;
-            LOG.info(
-                    "Dataset: {} Total records: {}, Downloaded: {}, Failed records: {}",
-                    dataset.getDatasetId(),
-                    dataset.getTotalSize(),
-                    counter,
-                    dataset.getTotalSize() - counter
-            );
+            // LOG only if record failed
+            if (failedRecords > 0) {
+                LOG.info(
+                        "Failed Dataset: {} Total records: {}, Downloaded: {}, Failed records: {}",
+                        dataset.getDatasetId(),
+                        dataset.getTotalSize(),
+                        counter,
+                        dataset.getTotalSize() - counter
+                );
+            }
             sink.close();
         }
         Duration duration = Duration.ofMillis(System.currentTimeMillis() - start);
