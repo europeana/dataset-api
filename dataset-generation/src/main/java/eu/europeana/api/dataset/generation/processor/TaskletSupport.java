@@ -1,5 +1,6 @@
 package eu.europeana.api.dataset.generation.processor;
 
+import eu.europeana.api.commons_sb3.definitions.format.RdfFormat;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -22,6 +23,18 @@ public class TaskletSupport {
 
     private static final Logger LOG = LogManager.getLogger(TaskletSupport.class);
 
+    /**
+     * Determines the folder name based on the provided RDF format.
+     * If the RDF format is XML, the folder name corresponds to the format's name.
+     * Otherwise, the alternative name of the RDF format is used in uppercase.
+     *
+     * This is to synchronize the turtle format folder name to TTL and not TURTLE
+     * @param rdfFormat the RDF format used to determine the folder name
+     * @return the folder name as a string, based on the given RDF format
+     */
+    public String getFolderName(RdfFormat rdfFormat) {
+        return rdfFormat.equals(RdfFormat.XML) ?  rdfFormat.name() : rdfFormat.getExtension().toUpperCase(Locale.ROOT);
+    }
 
     /**
      * Retrieves the last harvest date from the specified file. The file is expected to contain
