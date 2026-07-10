@@ -96,19 +96,5 @@ public class OaiPmhZipProcessor extends BaseProcessor {
         }
         return  folder;
     }
-
-    /**
-     * Determines the folder name based on the provided RDF format.
-     * If the RDF format is XML, the folder name corresponds to the format's name.
-     * Otherwise, the alternative name of the RDF format is used in uppercase.
-     *
-     * This is to synchronize the turtle format folder name to TTL and not TURTLE
-     * @param rdfFormat the RDF format used to determine the folder name
-     * @return the folder name as a string, based on the given RDF format
-     */
-    private String getFolderName(RdfFormat rdfFormat) {
-        return rdfFormat.equals(RdfFormat.XML) ?  rdfFormat.name() : rdfFormat.getExtension().toUpperCase(Locale.ROOT);
-    }
-
 }
 

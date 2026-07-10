@@ -16,6 +16,7 @@ import eu.europeana.api.dataset.generation.model.JobParameter;
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
 import eu.europeana.api.dataset.generation.processor.DatasetDeletionTasklet;
 import eu.europeana.api.dataset.generation.processor.TaskletSupport;
+import eu.europeana.api.dataset.generation.reader.ConcurrentListItemReader;
 import eu.europeana.api.dataset.generation.reader.ScheduledDatasetDbReaderJdbc;
 import eu.europeana.api.dataset.generation.reader.SearchApiDatasetReader;
 import eu.europeana.api.dataset.generation.service.ScheduleDatasetService;
@@ -26,11 +27,18 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.core.partition.support.Partitioner;
+import org.springframework.batch.item.ExecutionContext;
+import org.springframework.batch.item.ItemReader;
+import org.springframework.batch.item.ItemStreamReader;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.*;
 import org.springframework.batch.item.file.FlatFileItemWriter;
 import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
 import org.springframework.batch.item.file.transform.FieldExtractor;
+import org.springframework.batch.item.support.ListItemReader;
+import org.springframework.batch.item.support.SynchronizedItemReader;
+import org.springframework.batch.item.support.SynchronizedItemStreamReader;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
@@ -75,6 +83,9 @@ public class AppAutoConfig {
 
     @Autowired
     ApplicationContext applicationContext;
+
+    @Resource(name = BEAN_BATCH_SCHEDULED_DATASET_SERVICE)
+    private ScheduleDatasetService scheduleDatasetService;
 
     /**
      * Generate AuthenticationHandler to access other services like SR API
@@ -141,6 +152,20 @@ public class AppAutoConfig {
         return new ScheduledDatasetItemListener(applicationContext.getBean(ScheduleDatasetService.class));
     }
 
+
+    /**
+     * Provides an {@link ItemReader} for processing {@link ScheduledDataset} entities.
+     * The reader is implemented as a {@link ConcurrentListItemReader} that retrieves
+     * a list of all scheduled datasets from the {@code scheduleDatasetService}.
+     *
+     * @return an {@link ItemReader} instance configured for reading {@link ScheduledDataset} records.
+     */
+    @StepScope
+    @Bean(name = LIST_SCHEDULED_DATASET_READER)
+    public ItemReader<ScheduledDataset> reader() {
+        return new ConcurrentListItemReader<>(scheduleDatasetService.findAll());
+    }
+
     /**
      * Creates a StepScope bean that provides a {@link JdbcPagingItemReader} for reading
      * {@link ScheduledDataset} entities from the database in a paginated manner. This method
@@ -152,8 +177,8 @@ public class AppAutoConfig {
      * @return a configured {@link JdbcPagingItemReader} for reading {@link ScheduledDataset} records.
      */
     @StepScope
-    @Bean(name = SCHEDULED_DATASET_READER)
-    public JdbcPagingItemReader<ScheduledDataset> reader(DataSource dataSource,
+    @Bean(name = JDBC_SCHEDULED_DATASET_READER)
+    public JdbcPagingItemReader<ScheduledDataset> jdbcReader(DataSource dataSource,
             @Value("#{jobParameters[currentStartTime]}") Instant currentStartTime) throws EuropeanaApiException {
 
        ScheduledDatasetDbReaderJdbc reader =  new ScheduledDatasetDbReaderJdbc(

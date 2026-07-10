@@ -1,10 +1,12 @@
 package eu.europeana.api.dataset.generation.config;
 
 import eu.europeana.api.dataset.generation.listener.ScheduledDatasetItemListener;
+import eu.europeana.api.dataset.generation.model.ReaderType;
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
 import eu.europeana.api.dataset.generation.processor.JobCompletionTasklet;
 import eu.europeana.api.dataset.generation.processor.DatasetDeletionTasklet;
 import eu.europeana.api.dataset.generation.processor.OaiPmhZipProcessor;
+import eu.europeana.api.dataset.generation.service.ReaderFactory;
 import jakarta.annotation.Resource;
 
 import org.springframework.batch.core.ItemProcessListener;
@@ -17,15 +19,14 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.core.step.skip.SkipPolicy;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.database.JdbcPagingItemReader;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.*;
 import org.springframework.core.task.TaskExecutor;
 
 import org.springframework.transaction.PlatformTransactionManager;
-
 import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.*;
 
 /**
@@ -96,7 +97,7 @@ public class DatasetBatchConfig extends DefaultBatchConfiguration {
     @Bean
     Step datasetGenerationStep(JobRepository jobRepository) {
         return new StepBuilder("downloadDataset", jobRepository)
-                .<ScheduledDataset, ScheduledDataset>chunk(settings.getBatchChunkSize(), transactionManager)
+                .<ScheduledDataset, ScheduledDataset>chunk(getChunkSize(), transactionManager)
                 .reader(getReader())
                 .processor(getProcessor())
                 .writer(getWriter())
@@ -148,8 +149,30 @@ public class DatasetBatchConfig extends DefaultBatchConfiguration {
                 .build();
     }
 
-    private JdbcPagingItemReader<ScheduledDataset> getReader() {
-        return (JdbcPagingItemReader<ScheduledDataset>) appContext.getBean(SCHEDULED_DATASET_READER);
+    /**
+     * Retrieves the chunk size to be used for processing. The chunk size determines
+     * the number of items to be processed in a single batch operation.
+     * If the {@code ReaderType} is {@code LIST}, the chunk size is set to 1
+     * as we have implmeneted Custom Atomic reader
+     * Also, If processing one dataset takes a variable amount of time
+     * (downloads, API calls, file generation, etc.), chunk(1) gives the best load balancing
+     *
+     * Otherwise,
+     * the chunk size is determined by the value of {@code batchChunkSize} from
+     * the configuration settings.
+     * For JDBC readers a chunk size between 10-50 is recommended along with JdbcPagingItemReader
+     *
+     * @return an integer representing the chunk size for batch processing.
+     */
+    private int getChunkSize() {
+        if (settings.getReaderType().equals(ReaderType.LIST)) {
+            return 1;
+        }
+        return settings.getBatchChunkSize();
+    }
+
+    private ItemReader<ScheduledDataset> getReader() {
+       return appContext.getBean(ReaderFactory.class).getReader(settings.getReaderType());
     }
 
     private ItemProcessor<ScheduledDataset, ScheduledDataset> getProcessor() {

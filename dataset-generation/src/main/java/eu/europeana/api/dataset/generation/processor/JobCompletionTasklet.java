@@ -1,8 +1,10 @@
 package eu.europeana.api.dataset.generation.processor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import eu.europeana.api.commons_sb3.definitions.format.RdfFormat;
 import eu.europeana.api.commons_sb3.slack.SlackConnection;
 import eu.europeana.api.dataset.generation.config.GeneratorSettings;
+import eu.europeana.api.dataset.generation.format.DataFormatter;
 import eu.europeana.api.dataset.generation.service.ScheduleDatasetService;
 import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
@@ -19,6 +21,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -26,7 +29,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.DATA_FORMATS_BEAN;
 import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.STATUS_REPORT_CSV_PATH_BEAN;
 
 /**
@@ -59,10 +64,14 @@ public class JobCompletionTasklet extends TaskletSupport implements Tasklet {
     @Resource(name = STATUS_REPORT_CSV_PATH_BEAN)
     String statusReportCsvFile;
 
+    @Resource(name = DATA_FORMATS_BEAN)
+    private Map<RdfFormat, DataFormatter> formats;
+
     @Override
     public @Nullable RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
        updateLastHarvestDate();
        updateFailedSetsFile();
+       deleteTmpFiles();
        slackConnection.publishStatusReport(buildSlackMessage());
        LOG.info("Job completed successfully...!!");
        return RepeatStatus.FINISHED;
@@ -116,11 +125,54 @@ public class JobCompletionTasklet extends TaskletSupport implements Tasklet {
         try (BufferedWriter writer = Files.newBufferedWriter(Path.of(settings.getFailedSetsFile()))) {
             for(String ds : dataset) {
                 writer.write(ds);
+                writer.write("\n");
             }
         } catch (IOException e) {
            LOG.error("Error writing the {} file ", settings.getFailedSetsFile(), e);
         } finally {
             LOG.info("Failed sets file updated with datasets {}" , dataset);
+        }
+    }
+
+
+    /**
+     * Deletes temporary files with the ".tmp" extension from specified dataset folders.
+     * <p>
+     * This method iterates over the configured formats and attempts to locate folders
+     * based on the dataset folder settings and corresponding folder names. For each folder:
+     * - Validates if the folder exists and is a directory.
+     * - Lists all regular files in the folder.
+     * - Filters files with the ".tmp" extension.
+     * - Deletes the filtered files and logs the action.
+     * <p>
+     * If there is an issue deleting a specific file, an error message is logged for that file.
+     * <p>
+     * If a folder does not exist or is not a directory, an error message is logged and the method exits.
+     *
+     * @throws IOException If an I/O error occurs while listing or deleting files.
+     */
+    public  void deleteTmpFiles() throws IOException {
+        LOG.info("Starting deletion of unwanted temporary files .. ");
+        for (var entry : formats.entrySet()) {
+            Path folder = Paths.get(settings.getDatasetsFolder() + getFolderName(entry.getKey()));
+
+            if (!Files.exists(folder) || !Files.isDirectory(folder)) {
+                LOG.error("Folder {} does not exist or is not a directory", folder);
+                return;
+            }
+
+            try (Stream<Path> paths = Files.list(folder)) {
+                paths.filter(Files::isRegularFile)
+                        .filter(path -> path.getFileName().toString().endsWith(".tmp"))
+                        .forEach(path -> {
+                            try {
+                                Files.delete(path);
+                                LOG.info("Deleted: {}", path.getFileName());
+                            } catch (IOException e) {
+                               LOG.error("Error deleting file: {}", path.getFileName(), e);
+                            }
+                        });
+            }
         }
     }
 
@@ -145,7 +197,7 @@ public class JobCompletionTasklet extends TaskletSupport implements Tasklet {
         List<Map<String, Object>> blocks = new ArrayList<>();
 
         blocks.add(section("📊 *Dataset Report*"));  // Header
-        blocks.add(section(total + " datasets were processed, see full report <" + getFullReportLink(csvPath) + "|here>"));
+        blocks.add(section(total + " datasets were processed, see <" + getFullReportLink(csvPath) + "| full report>"));
         blocks.add(section("```" + summary + "```")); // Summary block
         blocks.add(section("```" + table + "```"));  // Table preview
 

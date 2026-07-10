@@ -9,7 +9,9 @@ public interface AppConfigConstants {
     String SEARCH_RECORD_AUTH_HANDLER            = "searchRecordAuthHandler";
     String BEAN_OAI_PMH_CLIENT                   = "oaipmhClient";
 
-    String SCHEDULED_DATASET_READER              = "scheduledDatasetReader";
+    String READER_FACTORY_BEAN                   = "readerFactory";
+    String LIST_SCHEDULED_DATASET_READER         = "listScheduledDatasetReader";
+    String JDBC_SCHEDULED_DATASET_READER         = "jdbcScheduledDatasetReader";
     String OAI_PMH_ZIP_PROCESSOR                 = "oaiPmhZipProcessor";
     String SCHEDULED_DATASET_WRITER              = "scheduledDatasetWriter";
     String SLACK_CONNECTION_BEAN                 = "slackConnection";

@@ -1,12 +1,10 @@
 package eu.europeana.api.dataset.generation.config;
 
+import eu.europeana.api.dataset.generation.model.ReaderType;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
-
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 
 /**
  * GeneratorSettings is a Spring configuration class responsible for loading
@@ -71,7 +69,7 @@ public class GeneratorSettings {
      * If all (batchUpdatesCorePoolSize) threads are busy and new task comes up,
      * then It will keep tasks in queue.
      */
-    @Value("${batch.step.updates.executor.queueSize: 30}")
+    @Value("${batch.step.updates.executor.queueSize: 0}")
     private int batchUpdatesQueueSize;
 
     /*
@@ -86,6 +84,9 @@ public class GeneratorSettings {
      */
     @Value("${log.interval: 120}")
     private int logInterval;
+
+    @Value("${spring.batch.reader: LIST}")
+    private String readerType;
 
     public String getSearchApiUrl() {
         return searchApiUrl;
@@ -167,5 +168,9 @@ public class GeneratorSettings {
 
     public int getLogInterval() {
         return logInterval;
+    }
+
+    public ReaderType getReaderType() {
+        return ReaderType.valueOf(readerType);
     }
 }

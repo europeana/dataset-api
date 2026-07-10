@@ -21,7 +21,7 @@ import java.util.List;
  * @author Srishti singh
  * @since 23 Feb 2026
  */
-public abstract class BaseProcessor implements ItemProcessor<ScheduledDataset, ScheduledDataset> {
+public abstract class BaseProcessor extends TaskletSupport implements ItemProcessor<ScheduledDataset, ScheduledDataset> {
 
     abstract ScheduledDataset doProcessing(ScheduledDataset dataset) throws Exception;
 
@@ -29,7 +29,6 @@ public abstract class BaseProcessor implements ItemProcessor<ScheduledDataset, S
     public @Nullable ScheduledDataset process(@NonNull ScheduledDataset item) throws Exception {
         return doProcessing(item);
     }
-
 
     /**
      * Performs an atomic swap operation, moving temporary files to their target locations.
