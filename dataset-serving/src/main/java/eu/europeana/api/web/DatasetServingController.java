@@ -7,10 +7,12 @@ import eu.europeana.api.config.DatasetServingConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,7 +44,7 @@ public class DatasetServingController {
 
     private static final Logger LOG = LogManager.getLogger(DatasetServingController.class);
     private static final String ZIP_EXTENSION = ".zip";
-    private static final int BUFFER_SIZE = 65536; // Increased from 1024 to 64KB for faster throughput
+    //private static final int BUFFER_SIZE = 65536; // Increased from 1024 to 64KB for faster throughput
 
     private final DatasetAuthService authService;
 
@@ -243,18 +245,11 @@ public class DatasetServingController {
             LOG.info("Range headers not specified.");
             updateResponseHeaders(datasetID, responseHeaders, fileSize.toString(), etag);
             LOG.info("Streaming the Response for file"+ filePathString +"  ..") ;
+            // OPTIMIZED: Uses OS-level native copy (Zero-copy where possible)
             responseStream = os -> {
-                try (RandomAccessFile file = new RandomAccessFile(filePathString, "r")) {
-                    byte[] buffer = new byte[BUFFER_SIZE];
-                    long pos = 0;
-                    int bytesRead;
-                    // Properly track bytesRead to avoid corrupting or padding the file end
-                    while (pos < fileSize && (bytesRead = file.read(buffer)) != -1) {
-                        os.write(buffer, 0, bytesRead);
-                        pos += bytesRead;
-                    }
-                    os.flush();
-                }
+                Path pathObj = Paths.get(filePathString);
+                Files.copy(pathObj, os);
+                os.flush();
             };
             return new ResponseEntity<>(responseStream, responseHeaders, HttpStatus.OK);
         }
@@ -270,17 +265,10 @@ public class DatasetServingController {
         updateResponseHeaders(datasetID, responseHeaders, String.valueOf(contentLength), etag);
         responseHeaders.add(HttpHeaders.CONTENT_RANGE, "bytes " + rangeStart + "-" + rangeEnd + "/" + fileSize);
         LOG.info("Streaming the Response for file"+ filePathString +"  ..") ;
+        // OPTIMIZED: Uses FileChannel transferTo for high-speed partial content streaming
         responseStream = os -> {
-            try (RandomAccessFile file = new RandomAccessFile(filePathString, "r")) {
-                file.seek(rangeStart);
-                byte[] buffer = new byte[BUFFER_SIZE];
-                long bytesRemaining = contentLength;
-                int bytesRead;
-
-                while (bytesRemaining > 0 && (bytesRead = file.read(buffer, 0, (int) Math.min(buffer.length, bytesRemaining))) != -1) {
-                    os.write(buffer, 0, bytesRead);
-                    bytesRemaining -= bytesRead;
-                }
+            try (FileChannel fileChannel = FileChannel.open(Paths.get(filePathString), StandardOpenOption.READ)) {
+                fileChannel.transferTo(rangeStart, contentLength, Channels.newChannel(os));
                 os.flush();
             }
         };
