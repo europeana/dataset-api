@@ -42,7 +42,7 @@ public class DatasetServingController {
 
     private static final Logger LOG = LogManager.getLogger(DatasetServingController.class);
     private static final String ZIP_EXTENSION = ".zip";
-    private static final int BUFFER_SIZE = 8192; // Increased from 1024 to 8KB for faster throughput
+    private static final int BUFFER_SIZE = 65536; // Increased from 1024 to 64KB for faster throughput
 
     private final DatasetAuthService authService;
 
@@ -153,10 +153,10 @@ public class DatasetServingController {
             if (!FileTypes.isValid(fileExtension)) {
                 return ResponseEntity.badRequest().build();
             }
-            LOG.info("Range Header value : {}",rangeHeader);
+
             // Only authorized users can download
             authorizeReadAccess(request);
-
+            LOG.info("User authorized ... Generating response ");
             return generateResponse(datasetID, fileExtension, rangeHeader);
 
         } catch (ApplicationAuthenticationException e) {
@@ -240,8 +240,9 @@ public class DatasetServingController {
         final HttpHeaders responseHeaders = new HttpHeaders();
 
         if (rangeHeader == null) {
+            LOG.info("Range headers not specified.");
             updateResponseHeaders(datasetID, responseHeaders, fileSize.toString(), etag);
-
+            LOG.info("Streaming the Response for file"+ filePathString +"  ..") ;
             responseStream = os -> {
                 try (RandomAccessFile file = new RandomAccessFile(filePathString, "r")) {
                     byte[] buffer = new byte[BUFFER_SIZE];
@@ -259,6 +260,7 @@ public class DatasetServingController {
         }
 
         // If Range headers are specified
+        LOG.info("Range Header is specified with value : {}",rangeHeader);
         String rangeValue = rangeHeader.replace("bytes=", "");
         String[] ranges = rangeValue.split("-");
         Long rangeStart = Long.parseLong(ranges[0]);
@@ -267,7 +269,7 @@ public class DatasetServingController {
 
         updateResponseHeaders(datasetID, responseHeaders, String.valueOf(contentLength), etag);
         responseHeaders.add(HttpHeaders.CONTENT_RANGE, "bytes " + rangeStart + "-" + rangeEnd + "/" + fileSize);
-
+        LOG.info("Streaming the Response for file"+ filePathString +"  ..") ;
         responseStream = os -> {
             try (RandomAccessFile file = new RandomAccessFile(filePathString, "r")) {
                 file.seek(rangeStart);
