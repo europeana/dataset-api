@@ -7,12 +7,10 @@ import eu.europeana.api.config.DatasetServingConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.IOException;
-import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
+import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,7 +42,7 @@ public class DatasetServingController {
 
     private static final Logger LOG = LogManager.getLogger(DatasetServingController.class);
     private static final String ZIP_EXTENSION = ".zip";
-    //private static final int BUFFER_SIZE = 65536; // Increased from 1024 to 64KB for faster throughput
+    private static final int BUFFER_SIZE = 1024 * 1024; // 1 MB
 
     private final DatasetAuthService authService;
 
@@ -158,7 +156,7 @@ public class DatasetServingController {
 
             // Only authorized users can download
             authorizeReadAccess(request);
-            LOG.info("User authorized ... Generating response ");
+            LOG.info("User authorized ... Generating response for dataset "+datasetID);
             return generateResponse(datasetID, fileExtension, rangeHeader);
 
         } catch (ApplicationAuthenticationException e) {
@@ -170,66 +168,6 @@ public class DatasetServingController {
         }
     }
 
-//    private ResponseEntity<StreamingResponseBody> generateResponse(
-//        String datasetID, String fileExtension, String rangeHeader) throws IOException {
-//
-//        StreamingResponseBody responseStream;
-//        String filePathString = getFileToServe(datasetID, fileExtension);
-//        Path path = Paths.get(filePathString);
-//        Long fileSize = Files.size(path);
-//
-//
-//        String etag = "\"" + fileSize + "-" + Files.getLastModifiedTime(path) + "\"";
-//
-//        byte[] buffer = new byte[BUFFER_SIZE];
-//        final HttpHeaders responseHeaders = new HttpHeaders();
-//
-//        if (rangeHeader == null) {
-//            updateResponseHeaders(datasetID, responseHeaders, fileSize.toString(),etag);
-//
-//            responseStream = os -> {
-//                RandomAccessFile file = new RandomAccessFile(filePathString, "r");
-//                try (file) {
-//                    long pos = 0;
-//                    file.seek(pos);
-//                    while (pos < fileSize - 1) {
-//                        file.read(buffer);
-//                        os.write(buffer);
-//                        pos += buffer.length;
-//                    }
-//                    os.flush();
-//                }
-//            };
-//            return new ResponseEntity<>(responseStream, responseHeaders, HttpStatus.OK);
-//        }
-//
-//        //If the Range headers are specified e.g. 'bytes=500-1000' calculate ranges
-//        String rangeValue = rangeHeader.replace("bytes=", "");
-//        String[] ranges = rangeValue.split("-");
-//        Long rangeStart = Long.parseLong(ranges[0]);
-//        Long rangeEnd = calculateRangeEnd(ranges, fileSize);
-//        String contentLength = String.valueOf((rangeEnd - rangeStart) + 1);
-//        updateResponseHeaders(datasetID, responseHeaders, contentLength,etag);
-//
-//        responseHeaders.add(HttpHeaders.CONTENT_RANGE, "bytes" + " " + rangeStart + "-" + rangeEnd + "/" + fileSize);
-//
-//        final Long rangeEndVal = rangeEnd;
-//        responseStream = os -> {
-//            RandomAccessFile file = new RandomAccessFile(filePathString, "r");
-//            try (file) {
-//                long pos = rangeStart;
-//                file.seek(pos);
-//                while (pos < rangeEndVal) {
-//                    file.read(buffer);
-//                    os.write(buffer);
-//                    pos += buffer.length;
-//                }
-//                os.flush();
-//            }
-//        };
-//        return new ResponseEntity<>(responseStream, responseHeaders, HttpStatus.PARTIAL_CONTENT);
-//    }
-
     private ResponseEntity<StreamingResponseBody> generateResponse(
         String datasetID, String fileExtension, String rangeHeader) throws IOException {
 
@@ -239,36 +177,49 @@ public class DatasetServingController {
         Long fileSize = Files.size(path);
 
         String etag = "\"" + fileSize + "-" + Files.getLastModifiedTime(path) + "\"";
+        byte[] buffer = new byte[BUFFER_SIZE];
         final HttpHeaders responseHeaders = new HttpHeaders();
 
         if (rangeHeader == null) {
-            LOG.info("Range headers not specified.");
-            updateResponseHeaders(datasetID, responseHeaders, fileSize.toString(), etag);
-            LOG.info("Streaming the Response for file"+ filePathString +"  ..") ;
-            // OPTIMIZED: Uses OS-level native copy (Zero-copy where possible)
+            updateResponseHeaders(datasetID, responseHeaders, fileSize.toString(),etag);
+
             responseStream = os -> {
-                Path pathObj = Paths.get(filePathString);
-                Files.copy(pathObj, os);
-                os.flush();
+                RandomAccessFile file = new RandomAccessFile(filePathString, "r");
+                try (file) {
+                    long pos = 0;
+                    file.seek(pos);
+                    while (pos < fileSize - 1) {
+                        file.read(buffer);
+                        os.write(buffer);
+                        pos += buffer.length;
+                    }
+                    os.flush();
+                }
             };
             return new ResponseEntity<>(responseStream, responseHeaders, HttpStatus.OK);
         }
 
-        // If Range headers are specified
-        LOG.info("Range Header is specified with value : {}",rangeHeader);
+        //If the Range headers are specified e.g. 'bytes=500-1000' calculate ranges
         String rangeValue = rangeHeader.replace("bytes=", "");
         String[] ranges = rangeValue.split("-");
         Long rangeStart = Long.parseLong(ranges[0]);
         Long rangeEnd = calculateRangeEnd(ranges, fileSize);
-        long contentLength = (rangeEnd - rangeStart) + 1;
+        String contentLength = String.valueOf((rangeEnd - rangeStart) + 1);
+        updateResponseHeaders(datasetID, responseHeaders, contentLength,etag);
 
-        updateResponseHeaders(datasetID, responseHeaders, String.valueOf(contentLength), etag);
-        responseHeaders.add(HttpHeaders.CONTENT_RANGE, "bytes " + rangeStart + "-" + rangeEnd + "/" + fileSize);
-        LOG.info("Streaming the Response for file"+ filePathString +"  ..") ;
-        // OPTIMIZED: Uses FileChannel transferTo for high-speed partial content streaming
+        responseHeaders.add(HttpHeaders.CONTENT_RANGE, "bytes" + " " + rangeStart + "-" + rangeEnd + "/" + fileSize);
+
+        final Long rangeEndVal = rangeEnd;
         responseStream = os -> {
-            try (FileChannel fileChannel = FileChannel.open(Paths.get(filePathString), StandardOpenOption.READ)) {
-                fileChannel.transferTo(rangeStart, contentLength, Channels.newChannel(os));
+            RandomAccessFile file = new RandomAccessFile(filePathString, "r");
+            try (file) {
+                long pos = rangeStart;
+                file.seek(pos);
+                while (pos < rangeEndVal) {
+                    file.read(buffer);
+                    os.write(buffer);
+                    pos += buffer.length;
+                }
                 os.flush();
             }
         };
