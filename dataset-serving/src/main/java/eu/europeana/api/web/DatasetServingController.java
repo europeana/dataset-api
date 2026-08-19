@@ -199,6 +199,19 @@ public class DatasetServingController {
             )
             .body(resource);
     }
+
+    @GetMapping("/test-stream")
+    public ResponseEntity<StreamingResponseBody> testStream() {
+
+        StreamingResponseBody body = outputStream -> {
+            byte[] data = new byte[8192];
+            outputStream.write(data);
+            outputStream.flush();
+        };
+
+        return ResponseEntity.ok(body);
+    }
+
 //    private ResponseEntity<StreamingResponseBody> generateResponse(
 //        String datasetID, String fileExtension, String rangeHeader) throws IOException {
 //
