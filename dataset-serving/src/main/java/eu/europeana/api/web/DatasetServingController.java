@@ -7,6 +7,7 @@ import eu.europeana.api.config.DatasetServingConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
@@ -210,6 +211,79 @@ public class DatasetServingController {
         };
 
         return ResponseEntity.ok(body);
+    }
+
+    @GetMapping("/test-stream-large")
+    public ResponseEntity<StreamingResponseBody> testStreamLarge() {
+
+        StreamingResponseBody body = outputStream -> {
+
+            byte[] buffer = new byte[1024 * 1024]; // 1 MB
+
+            long total = 0;
+            long target = 390_537_354L;
+
+            long start = System.nanoTime();
+
+            while (total < target) {
+                int toWrite = (int) Math.min(buffer.length, target - total);
+                outputStream.write(buffer, 0, toWrite);
+                total += toWrite;
+            }
+
+            outputStream.flush();
+
+            long elapsedMs =
+                (System.nanoTime() - start) / 1_000_000;
+
+            LOG.info(
+                "Generated {} bytes in {} ms",
+                total,
+                elapsedMs
+            );
+        };
+
+        return ResponseEntity.ok()
+            .contentType(MediaType.APPLICATION_OCTET_STREAM)
+            .contentLength(390_537_354L)
+            .body(body);
+    }
+
+    @GetMapping("/test-file-read/{datasetId}")
+    public ResponseEntity<String> testFileRead(
+        @PathVariable("datasetId") String datasetId) throws IOException {
+
+        Path path = Paths.get(
+            config.getDataSetLocalStoragePath(),
+            "XML",
+            datasetId + ".zip"
+        );
+
+        long start = System.nanoTime();
+        long bytes = 0;
+
+        try (InputStream in = Files.newInputStream(path)) {
+
+            byte[] buffer = new byte[1024 * 1024];
+
+            int n;
+            while ((n = in.read(buffer)) != -1) {
+                bytes += n;
+            }
+        }
+
+        long elapsedMs =
+            (System.nanoTime() - start) / 1_000_000;
+
+        LOG.info(
+            "Read {} bytes in {} ms",
+            bytes,
+            elapsedMs
+        );
+
+        return ResponseEntity.ok(
+            bytes + " bytes in " + elapsedMs + " ms"
+        );
     }
 
 //    private ResponseEntity<StreamingResponseBody> generateResponse(
