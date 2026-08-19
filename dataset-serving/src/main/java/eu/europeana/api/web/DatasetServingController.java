@@ -176,7 +176,7 @@ public class DatasetServingController {
 
     @GetMapping("/test-download/{datasetId}")
     public ResponseEntity<Resource> testDownload(
-        @PathVariable String datasetId) throws IOException {
+        @PathVariable("datasetId") String datasetId) throws IOException {
 
         Path path = Paths.get(
             config.getDataSetLocalStoragePath(),
