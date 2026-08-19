@@ -26,8 +26,11 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -170,6 +173,32 @@ public class DatasetServingController {
         }
     }
 
+
+    @GetMapping("/test-download/{datasetId}")
+    public ResponseEntity<Resource> testDownload(
+        @PathVariable String datasetId) throws IOException {
+
+        Path path = Paths.get(
+            config.getDataSetLocalStoragePath(),
+            "XML",
+            datasetId + ".zip"
+        );
+
+        if (!Files.exists(path) || !Files.isRegularFile(path)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Resource resource = new FileSystemResource(path);
+
+        return ResponseEntity.ok()
+            .contentType(MediaType.APPLICATION_OCTET_STREAM)
+            .contentLength(Files.size(path))
+            .header(
+                HttpHeaders.CONTENT_DISPOSITION,
+                "attachment; filename=\"" + datasetId + ".zip\""
+            )
+            .body(resource);
+    }
 //    private ResponseEntity<StreamingResponseBody> generateResponse(
 //        String datasetID, String fileExtension, String rangeHeader) throws IOException {
 //
