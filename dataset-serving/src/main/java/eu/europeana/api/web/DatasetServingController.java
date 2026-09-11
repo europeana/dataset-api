@@ -19,7 +19,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -124,7 +123,8 @@ public class DatasetServingController {
             return new FileDetails(
                 baseName,
                 type,
-                FileUtils.byteCountToDisplaySize(fileAttr.size()),
+                //FileUtils.byteCountToDisplaySize(fileAttr.size()),
+                fileAttr.size() + " bytes",
                 fileAttr.lastModifiedTime().toInstant().toString(),
                 "/dataset/"+baseName+"?format="+type.toLowerCase(Locale.ENGLISH));
 
