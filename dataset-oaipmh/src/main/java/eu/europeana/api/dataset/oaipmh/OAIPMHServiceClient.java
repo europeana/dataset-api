@@ -1,18 +1,23 @@
 package eu.europeana.api.dataset.oaipmh;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import eu.europeana.api.commons_sb3.http.HttpConnection;
 import eu.europeana.api.dataset.oaipmh.exception.OaiPmhClientException;
 import eu.europeana.api.dataset.oaipmh.model.OaiPage;
 import eu.europeana.api.dataset.oaipmh.parser.OaiRawStreamingParser;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.HttpStatus;
+import org.apache.hc.core5.http.ParseException;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.stream.XMLStreamException;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 
 /**
@@ -41,11 +46,13 @@ public class OAIPMHServiceClient {
                 return OaiRawStreamingParser.parseOaiResponse(response.getEntity().getContent());
             }
             else { // throw error for all other http status
-                LOG.error("Error response from OAI-PMH request: {}, {}", response.getCode(), request);
+
+                LOG.error("Error response from OAI-PMH request {}. code : {}", request, response.getCode());
+                LOG.error("Error response : {}", EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8));
                 throw new OaiPmhClientException(response.getCode());
             }
-        } catch (IOException | XMLStreamException | ParserConfigurationException e) {
-            LOG.error("Exception while getting the response from oai pmh.", e);
+        } catch (IOException | XMLStreamException | ParserConfigurationException | ParseException e) {
+            LOG.error("Exception while getting the response from oai pmh - {}", request, e);
         }
         return null;
     }
