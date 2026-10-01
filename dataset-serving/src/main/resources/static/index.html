@@ -51,9 +51,9 @@
      fileHtml += `
       <li class="file-item">
         <div class="file-info">
-          <div class="file-name">${file.fileName}.${file.contentType}</div>
+          <div class="file-name">${file.fileName}</div>
            <div class="file-meta">
-           Size: ${file.fileSize} | Modified: ${new Date(file.lastModified).toLocaleString()}
+           Type: ${file.contentType} | Size: ${file.fileSize} | Modified: ${new Date(file.lastModified).toLocaleString()}
            </div>
         </div>
          <div class="controls">
