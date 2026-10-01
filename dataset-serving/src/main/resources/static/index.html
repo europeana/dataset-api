@@ -11,6 +11,33 @@
    color: #333;
   }
 
+  .toolbar {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 12px;
+   align-items: center;
+   margin-bottom: 20px;
+   padding: 12px 14px;
+   background: #fff;
+   border: 1px solid #e0e0e0;
+  }
+
+  .toolbar label {
+   font-size: 0.9em;
+   color: #5f6368;
+   display: flex;
+   align-items: center;
+   gap: 8px;
+  }
+
+  .toolbar select {
+   padding: 6px 8px;
+   border: 1px solid #dadce0;
+   background: #fff;
+   color: #202124;
+   font-size: 0.9em;
+  }
+
   .file-list { list-style: none; padding: 0; }
   .file-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #fafafa; }
 
@@ -21,39 +48,91 @@
   .btn { padding: 6px 14px; border-radius: 4px; border: none; cursor: pointer; font-weight: 500; transition: opacity 0.2s; }
   .btn-download { background-color: #1a73e8; color: white; text-decoration: none}
   .status { font-size: 0.8em; font-weight: bold; min-width: 80px; text-align: right; }
+  .dataset-id { font-weight: 600; margin: 16px 0 8px; }
+  .dataset-group { list-style: none; }
+  .summary {
+   font-size: 0.9em;
+   color: #5f6368;
+   margin: -8px 0 16px;
+  }
 
  </style>
 </head>
 <body>
 <h2>Download Datasets</h2>
+<p id="dataset-summary" class="summary"></p>
+
+<div class="toolbar">
+ <label>
+  Sort by
+  <select id="sortBy" aria-label="Sort by">
+   <option value="name">Name</option>
+   <option value="size">Size</option>
+   <option value="lastModified">Last modified</option>
+  </select>
+ </label>
+ <label>
+  Order
+  <select id="sortOrder" aria-label="Sort order">
+   <option value="asc">Ascending</option>
+   <option value="desc">Descending</option>
+  </select>
+ </label>
+</div>
+
 <ul id="dataset-container"></ul>
 
 <script>
 
+ function formatSize(bytes) {
+  const value = Number(bytes);
+  if (Number.isNaN(value)) {
+   return bytes;
+  }
+  if (value < 1024) {
+   return value + ' B';
+  }
+  if (value < 1024 * 1024) {
+   return (value / 1024).toFixed(1) + ' KB';
+  }
+  return (value / (1024 * 1024)).toFixed(1) + ' MB';
+ }
+
  async function fetchFileDetails(){
   const container = document.getElementById('dataset-container');
+  const summary = document.getElementById('dataset-summary');
+  const sortBy = document.getElementById('sortBy').value;
+  const sortOrder = document.getElementById('sortOrder').value;
   container.innerHTML = '<li>Loading...</li>';
+  summary.textContent = '';
 
   try {
-  <!-- Get the response -->
-  const response = await fetch('/dataset/');
-  const data = await response.json();
+   const params = new URLSearchParams({ sortBy, sortOrder });
+   const response = await fetch('/dataset/?' + params.toString());
+   if (!response.ok) {
+    throw new Error('Request failed with status ' + response.status);
+   }
+   const data = await response.json();
    container.innerHTML = '';
 
-   for (const datasetID in data) {
-   <!-- create list item for each dataset which has all type of downloadable file details -->
+   const datasetIds = Object.keys(data);
+   const total = datasetIds.length;
+   summary.textContent = total === 1
+     ? '1 dataset available'
+     : total + ' datasets available';
+
+   for (const datasetID of datasetIds) {
     const groupLi = document.createElement('li');
     groupLi.className = 'dataset-group';
 
-    let fileHtml = ''
+    let fileHtml = '';
     data[datasetID].forEach(file => {
-
      fileHtml += `
       <li class="file-item">
         <div class="file-info">
           <div class="file-name">${file.fileName}</div>
            <div class="file-meta">
-           Type: ${file.contentType} | Size: ${file.fileSize} | Modified: ${new Date(file.lastModified).toLocaleString()}
+           Type: ${file.contentType} | Size: ${formatSize(file.fileSize)} | Modified: ${new Date(file.lastModified).toLocaleString()}
            </div>
         </div>
          <div class="controls">
@@ -69,11 +148,21 @@
                     `;
     container.appendChild(groupLi);
    }
+
+   if (container.children.length === 0) {
+    container.innerHTML = '<li>No datasets available.</li>';
+   }
   } catch (error) {
+   summary.textContent = '';
    container.innerHTML = '<li style="color:red;">Failed to connect to API.</li>';
   }
  }
- window.onload = fetchFileDetails;
+
+ window.onload = function () {
+  document.getElementById('sortBy').addEventListener('change', fetchFileDetails);
+  document.getElementById('sortOrder').addEventListener('change', fetchFileDetails);
+  fetchFileDetails();
+ };
 </script>
 
 </body>
