@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.logging.log4j.Level;
@@ -60,15 +61,16 @@ public class DatasetServingController {
     }
 
     /**
-     * Fetches the downloadable file details grouped by their respective dataset ID.
-     * Results can be sorted with {@code sortBy} and {@code sortOrder}.
+     * Fetches the downloadable file details grouped by their respective dataset ID. Results can be
+     * sorted with {@code sortBy} and {@code sortOrder}.
      *
-     * @param sortBy field to sort by: {@code name}, {@code size}, or {@code lastModified} (default {@code name})
+     * @param sortBy    field to sort by: {@code name}, {@code size}, or {@code lastModified}
+     *                  (default {@code name})
      * @param sortOrder {@code asc} or {@code desc} (default {@code asc})
      * @return map containing the datasetID and respective file details list, in the requested order
      */
     @GetMapping(value ={"/dataset/"})
-    public ResponseEntity<Map<String, List<FileDetails>>> getFileList(
+    public ResponseEntity<List<DatasetFileGroup>> getFileList(
         @RequestParam(name = "sortBy", defaultValue = "name") String sortBy,
         @RequestParam(name = "sortOrder", defaultValue = "asc") String sortOrder) {
 
@@ -118,7 +120,13 @@ public class DatasetServingController {
                         key -> new ArrayList<>())
                     .add(details);
             }
-            return ResponseEntity.ok().body(datasetFilesDetails);
+
+            //Convert the map into the list of DTOs so that its rendered as an ordered JSON Array []
+            List<DatasetFileGroup> orderedList = datasetFilesDetails.entrySet().stream()
+                .map(entry -> new DatasetFileGroup(entry.getKey(),entry.getValue()))
+                .collect(Collectors.toList());
+
+            return ResponseEntity.ok().body(orderedList);
 
         } catch (IOException e) {
             LOG.error("Exception while fetching files for download - ", e);
