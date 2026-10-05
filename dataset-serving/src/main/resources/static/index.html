@@ -92,10 +92,13 @@
   if (value < 1024) {
    return value + ' B';
   }
-  if (value < 1024 * 1024) {
+  if (value < (1024 * 1024)) {
    return (value / 1024).toFixed(1) + ' KB';
   }
-  return (value / (1024 * 1024)).toFixed(1) + ' MB';
+  if (value < (1024 * 1024 * 1024)) {
+   return (value / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+  return (value / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
  }
 
  async function fetchFileDetails(){
@@ -115,18 +118,17 @@
    const data = await response.json();
    container.innerHTML = '';
 
-   const datasetIds = Object.keys(data);
-   const total = datasetIds.length;
+   const total = data.length;
    summary.textContent = total === 1
      ? '1 dataset available'
      : total + ' datasets available';
 
-   for (const datasetID of datasetIds) {
+   for (const group of data) {
     const groupLi = document.createElement('li');
     groupLi.className = 'dataset-group';
 
     let fileHtml = '';
-    data[datasetID].forEach(file => {
+    group.files.forEach(file => {
      fileHtml += `
       <li class="file-item">
         <div class="file-info">
@@ -143,7 +145,7 @@
      `;
     });
     groupLi.innerHTML = `
-                        <div class="dataset-id">Dataset ${datasetID}</div>
+                        <div class="dataset-id">Dataset ${group.datasetName}</div>
                         <ul class="file-list">${fileHtml}</ul>
                     `;
     container.appendChild(groupLi);
