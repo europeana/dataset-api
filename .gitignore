@@ -1,5 +1,5 @@
 *.generation.properties
-*.user.generation.properties
+*.generation.user.properties
 
 
 loader/logs
