@@ -1,6 +1,9 @@
 package eu.europeana.api.dataset.generation.deletion.impl;
 
+import eu.europeana.api.commons_sb3.definitions.format.RdfFormat;
 import eu.europeana.api.dataset.generation.deletion.DeletionService;
+import eu.europeana.api.dataset.generation.format.DataFormatter;
+import eu.europeana.api.dataset.generation.processor.TaskletSupport;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -8,6 +11,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -22,7 +26,8 @@ import java.util.stream.Stream;
  * @author Srishti Singh
  * @since 23 March 2026
  */
-public record FileDeletionService(String storagePath) implements DeletionService {
+public record FileDeletionService(String storagePath,
+                                  Map<RdfFormat, DataFormatter> formats) implements DeletionService {
 
     private static final Logger LOG = LogManager.getLogger(FileDeletionService.class);
 
@@ -34,12 +39,18 @@ public record FileDeletionService(String storagePath) implements DeletionService
             return;
         }
 
-        Path dir = Paths.get(this.storagePath);
-        if (!Files.exists(dir)) {
-            LOG.warn("Zip directory does not exist: {}", this.storagePath);
-            return;
-        }
+        formats.keySet().forEach(format -> {
+            Path directory = Paths.get(storagePath)
+                    .resolve(TaskletSupport.getFolderName(format));
+            try {
+                delete(directory, datasetsForRemoval);
+            } catch (IOException e) {
+                LOG.error("Failed to delete files from " + directory, e);
+            }
+        });
+    }
 
+    private void delete(Path dir, Set<String> datasetsForRemoval) throws IOException {
         try (Stream<Path> files = Files.list(dir)) {
             files.filter(path -> path.toString().endsWith(".zip"))
                     .forEach(path -> {

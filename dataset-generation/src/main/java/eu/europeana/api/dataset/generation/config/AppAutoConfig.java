@@ -27,18 +27,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.batch.core.configuration.annotation.StepScope;
-import org.springframework.batch.core.partition.support.Partitioner;
-import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemReader;
-import org.springframework.batch.item.ItemStreamReader;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.*;
 import org.springframework.batch.item.file.FlatFileItemWriter;
 import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
 import org.springframework.batch.item.file.transform.FieldExtractor;
-import org.springframework.batch.item.support.ListItemReader;
-import org.springframework.batch.item.support.SynchronizedItemReader;
-import org.springframework.batch.item.support.SynchronizedItemStreamReader;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
@@ -217,7 +211,7 @@ public class AppAutoConfig {
 
     @Bean
     public FileDeletionService getFileDeletionService() {
-        return new FileDeletionService(settings.getDatasetsFolder());
+        return new FileDeletionService(settings.getDatasetsFolder(), getFormats());
     }
 
     // This will be a stepScope bean if we implement other storages in the future
@@ -227,7 +221,7 @@ public class AppAutoConfig {
                 settings.getSnapshotFile(),
                 getStatusReportCsvPath(),
                 applicationContext.getBean(SearchApiDatasetReader.class),
-                new FileDeletionService(settings.getDatasetsFolder())) ;
+                getFileDeletionService()) ;
     }
 
     @Bean(name = SLACK_CONNECTION_BEAN)

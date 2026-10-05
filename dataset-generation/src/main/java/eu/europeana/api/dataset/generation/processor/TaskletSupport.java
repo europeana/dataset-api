@@ -32,7 +32,7 @@ public class TaskletSupport {
      * @param rdfFormat the RDF format used to determine the folder name
      * @return the folder name as a string, based on the given RDF format
      */
-    public String getFolderName(RdfFormat rdfFormat) {
+    public static String getFolderName(RdfFormat rdfFormat) {
         return rdfFormat.equals(RdfFormat.XML) ?  rdfFormat.name() : rdfFormat.getExtension().toUpperCase(Locale.ROOT);
     }
 
