@@ -12,14 +12,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -42,11 +44,11 @@ public class DatasetServingController {
 
     private static final Logger LOG = LogManager.getLogger(DatasetServingController.class);
     private static final String ZIP_EXTENSION = ".zip";
-    private static final int BUFFER_SIZE = 1024;
+    private static final int BUFFER_SIZE = 1024 * 1024; // 1 MB
 
-    private DatasetAuthService authService;
+    private final DatasetAuthService authService;
 
-    private DatasetServingConfig config;
+    private final DatasetServingConfig config;
 
     /**
      * Constructs a new {@code DatasetServingController}
@@ -59,40 +61,72 @@ public class DatasetServingController {
     }
 
     /**
-     * Fetches the downloadable file details grouped by their respective dataset ID     *
-     * @return map containing the datasetID and respective file details list
+     * Fetches the downloadable file details grouped by their respective dataset ID. Results can be
+     * sorted with {@code sortBy} and {@code sortOrder}.
+     *
+     * @param sortBy    field to sort by: {@code name}, {@code size}, or {@code lastModified}
+     *                  (default {@code name})
+     * @param sortOrder {@code asc} or {@code desc} (default {@code asc})
+     * @return map containing the datasetID and respective file details list, in the requested order
      */
     @GetMapping(value ={"/dataset/"})
-    public ResponseEntity<Map<String, List<FileDetails>>> getFileList(){
+    public ResponseEntity<List<DatasetFileGroup>> getFileList(
+        @RequestParam(name = "sortBy", defaultValue = "name") String sortBy,
+        @RequestParam(name = "sortOrder", defaultValue = "asc") String sortOrder) {
+
+        final FileSortField sortField;
+        final SortOrder order;
+        try {
+            sortField = FileSortField.fromParam(sortBy);
+            order = SortOrder.fromParam(sortOrder);
+        } catch (IllegalArgumentException e) {
+            LOG.warn("Invalid sort parameters: {}", e.getMessage());
+            return ResponseEntity.badRequest().build();
+        }
 
         try {
-            Map<String,List<FileDetails>> datasetFilesDetails = new HashMap<>();
+            List<FileDetails> allFiles = new ArrayList<>();
 
-             //look for dataset archive files in each folder which is associated to file content type e.g. XML,TTL
-             for(FileTypes extension  : FileTypes.values()){
+            // look for dataset archive files in each folder associated to a format e.g. XML, TTL
+            for (FileTypes extension : FileTypes.values()) {
 
-                 String directoryPath = config.getDataSetLocalStoragePath() + extension.label;
-                 Path directory = Paths.get(directoryPath);
-                 if (!Files.exists(directory) || !Files.isDirectory(directory)) {
-                     LOG.log(Level.ERROR,"Invalid Path {}", directoryPath);
-                     continue;
-                 }
+                String directoryPath = config.getDataSetLocalStoragePath() + extension.label;
+                Path directory = Paths.get(directoryPath);
+                if (!Files.exists(directory) || !Files.isDirectory(directory)) {
+                    LOG.log(Level.ERROR, "Invalid Path {}", directoryPath);
+                    continue;
+                }
 
-                 //If the zip file (<datasetID>.zip) is found  , put it in the response map against that datasetID
-                 // Files.list opens the DirectoryStream internally which needs to be closed.
+                // Files.list opens a DirectoryStream that must be closed
+                try (Stream<Path> list = Files.list(directory)) {
+                    list.map(this::getFileDetails)
+                        .filter(Objects::nonNull)
+                        .forEach(allFiles::add);
+                }
+            }
 
-                 try (Stream<Path> list = Files.list(directory)) {
-                     list.map(this::getFileDetails)
-                         .filter(Objects::nonNull)
-                         .forEach(details ->
-                             datasetFilesDetails.computeIfAbsent(
-                                     details.getFileName(),
-                                     key -> new ArrayList<>())
-                                 .add(details)
-                         );
-                 }
-             }
-            return ResponseEntity.ok().body(datasetFilesDetails);
+            Comparator<FileDetails> comparator = sortField.comparator();
+            if (order == SortOrder.DESC) {
+                comparator = comparator.reversed();
+            }
+            allFiles.sort(comparator);
+
+            // LinkedHashMap keeps insertion order from the sorted list
+            Map<String, List<FileDetails>> datasetFilesDetails = new LinkedHashMap<>();
+            for (FileDetails details : allFiles) {
+                datasetFilesDetails
+                    .computeIfAbsent(
+                        FilenameUtils.getBaseName(details.getFileName()),
+                        key -> new ArrayList<>())
+                    .add(details);
+            }
+
+            //Convert the map into the list of DTOs so that its rendered as an ordered JSON Array []
+            List<DatasetFileGroup> orderedList = datasetFilesDetails.entrySet().stream()
+                .map(entry -> new DatasetFileGroup(entry.getKey(),entry.getValue()))
+                .collect(Collectors.toList());
+
+            return ResponseEntity.ok().body(orderedList);
 
         } catch (IOException e) {
             LOG.error("Exception while fetching files for download - ", e);
@@ -117,16 +151,33 @@ public class DatasetServingController {
                 return null;
             }
 
-            String type = FileTypes.getTypeByLabel(
+            // MIME type from parent folder label (XML → application/rdf+xml, TTL → text/turtle)
+            FileTypes fileType = FileTypes.fromLabel(
                 FilenameUtils.getBaseName(filePath.getParent().toString()));
+            if (fileType == null) {
+                return null;
+            }
 
-            String baseName = FilenameUtils.getBaseName(filePath.toString());
+            // Dataset ID from zip name (e.g. 1.zip → 1); display name uses format extension (1.xml / 1.ttl)
+            String datasetId = FilenameUtils.getBaseName(filePath.toString());
+            String fileName = datasetId + "." + fileType.extension;
+
+            String formatLabel = fileType.extension;
+
+            // Restrict last-modified precision to millis (not nanos)
+            // e.g. 2026-03-26T08:15:30.123456789Z -> 2026-03-26T08:15:30.123Z
+            String lastModified = fileAttr.lastModifiedTime().toInstant()
+                .truncatedTo(ChronoUnit.MILLIS)
+                .toString();
+
             return new FileDetails(
-                baseName,
-                type,
-                FileUtils.byteCountToDisplaySize(fileAttr.size()),
-                fileAttr.lastModifiedTime().toInstant().toString(),
-                "/dataset/"+baseName+"?format="+type.toLowerCase(Locale.ENGLISH));
+                fileName,
+                formatLabel,
+                fileType.mediaType,
+                //FileUtils.byteCountToDisplaySize(fileAttr.size()),
+                fileAttr.size(),
+                lastModified,
+                "/dataset/" + datasetId + "?format=" + fileType.name().toLowerCase(Locale.ENGLISH));
 
 
         } catch (IOException e) {
@@ -153,10 +204,10 @@ public class DatasetServingController {
             if (!FileTypes.isValid(fileExtension)) {
                 return ResponseEntity.badRequest().build();
             }
-            LOG.info("Range Header value : {}",rangeHeader);
+
             // Only authorized users can download
             authorizeReadAccess(request);
-
+            LOG.info("User authorized ... Generating response for dataset "+datasetID);
             return generateResponse(datasetID, fileExtension, rangeHeader);
 
         } catch (ApplicationAuthenticationException e) {
@@ -176,9 +227,7 @@ public class DatasetServingController {
         Path path = Paths.get(filePathString);
         Long fileSize = Files.size(path);
 
-
         String etag = "\"" + fileSize + "-" + Files.getLastModifiedTime(path) + "\"";
-
         byte[] buffer = new byte[BUFFER_SIZE];
         final HttpHeaders responseHeaders = new HttpHeaders();
 
