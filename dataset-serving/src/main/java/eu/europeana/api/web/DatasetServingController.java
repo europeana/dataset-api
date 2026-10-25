@@ -7,7 +7,6 @@ import eu.europeana.api.config.DatasetServingConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -26,15 +25,17 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 /**
  * Controller class for the endpoints exposed by dataset-serving module
@@ -44,8 +45,6 @@ public class DatasetServingController {
 
     private static final Logger LOG = LogManager.getLogger(DatasetServingController.class);
     private static final String ZIP_EXTENSION = ".zip";
-    private static final int BUFFER_SIZE = 1024 * 1024; // 1 MB
-
     private final DatasetAuthService authService;
 
     private final DatasetServingConfig config;
@@ -191,113 +190,43 @@ public class DatasetServingController {
      * Generates the streaming response for dataset zip file to download.
      * @param datasetID numeric id of the dataset
      * @param fileExtension the type of inner file in the zip to download e.g. XML,TTL
-     * @param rangeHeader range headers provided in case the download is paused and then resumed
      * @param request HttpServletRequest
      * @return response entity containing StreamingResponseBody
      */
     @GetMapping("/dataset/{datasetId}")
-    public ResponseEntity<StreamingResponseBody> getFileResource(@PathVariable("datasetId") String datasetID,
-        @RequestParam(name = "format",defaultValue ="XML",required = false) String fileExtension,
-        @RequestHeader(value = "Range", required = false) String rangeHeader,
-        HttpServletRequest request) {
+    public ResponseEntity<Resource> getFileResource(
+        @PathVariable("datasetId") String datasetID,
+        @RequestParam(name = "format", defaultValue = "XML", required = false) String fileExtension,
+        HttpServletRequest request) throws IOException {
+
+        if (!FileTypes.isValid(fileExtension)) {
+            return ResponseEntity.badRequest().build();
+        }
+
         try {
-            if (!FileTypes.isValid(fileExtension)) {
-                return ResponseEntity.badRequest().build();
-            }
-
-            // Only authorized users can download
-            authorizeReadAccess(request);
-            LOG.info("User authorized ... Generating response for dataset "+datasetID);
-            return generateResponse(datasetID, fileExtension, rangeHeader);
-
+            authorizeReadAccess(request);   // see auth section below
         } catch (ApplicationAuthenticationException e) {
             LOG.error("Unauthorized access ", e);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        } catch (IOException e) {
-            LOG.error("Exception while fetching the file ", e);
+        }
+
+        Path path = Paths.get(getFileToServe(datasetID, fileExtension));
+        if (!Files.isRegularFile(path)) {
             return ResponseEntity.notFound().build();
         }
-    }
 
-    private ResponseEntity<StreamingResponseBody> generateResponse(
-        String datasetID, String fileExtension, String rangeHeader) throws IOException {
+        Resource resource = new FileSystemResource(path);
+        String etag = "\"" + Files.size(path) + "-" + Files.getLastModifiedTime(path).toMillis() + "\"";
 
-        StreamingResponseBody responseStream;
-        String filePathString = getFileToServe(datasetID, fileExtension);
-        Path path = Paths.get(filePathString);
-        Long fileSize = Files.size(path);
-
-        String etag = "\"" + fileSize + "-" + Files.getLastModifiedTime(path) + "\"";
-        byte[] buffer = new byte[BUFFER_SIZE];
-        final HttpHeaders responseHeaders = new HttpHeaders();
-
-        if (rangeHeader == null) {
-            updateResponseHeaders(datasetID, responseHeaders, fileSize.toString(),etag);
-
-            responseStream = os -> {
-                RandomAccessFile file = new RandomAccessFile(filePathString, "r");
-                try (file) {
-                    long pos = 0;
-                    file.seek(pos);
-                    while (pos < fileSize - 1) {
-                        file.read(buffer);
-                        os.write(buffer);
-                        pos += buffer.length;
-                    }
-                    os.flush();
-                }
-            };
-            return new ResponseEntity<>(responseStream, responseHeaders, HttpStatus.OK);
-        }
-
-        //If the Range headers are specified e.g. 'bytes=500-1000' calculate ranges
-        String rangeValue = rangeHeader.replace("bytes=", "");
-        String[] ranges = rangeValue.split("-");
-        Long rangeStart = Long.parseLong(ranges[0]);
-        Long rangeEnd = calculateRangeEnd(ranges, fileSize);
-        String contentLength = String.valueOf((rangeEnd - rangeStart) + 1);
-        updateResponseHeaders(datasetID, responseHeaders, contentLength,etag);
-
-        responseHeaders.add(HttpHeaders.CONTENT_RANGE, "bytes" + " " + rangeStart + "-" + rangeEnd + "/" + fileSize);
-
-        final Long rangeEndVal = rangeEnd;
-        responseStream = os -> {
-            RandomAccessFile file = new RandomAccessFile(filePathString, "r");
-            try (file) {
-                long pos = rangeStart;
-                file.seek(pos);
-                while (pos < rangeEndVal) {
-                    file.read(buffer);
-                    os.write(buffer);
-                    pos += buffer.length;
-                }
-                os.flush();
-            }
-        };
-        return new ResponseEntity<>(responseStream, responseHeaders, HttpStatus.PARTIAL_CONTENT);
-    }
-
-    private Long calculateRangeEnd(String[] ranges, Long fileSize) {
-        Long rangeEnd;
-        if (ranges.length > 1) {
-            rangeEnd = Long.parseLong(ranges[1]);
-        } else {
-            rangeEnd = fileSize - 1;
-        }
-        if (fileSize < rangeEnd) {
-            rangeEnd = fileSize - 1;
-        }
-        return rangeEnd;
-    }
-
-    private static void updateResponseHeaders(String datasetID, HttpHeaders responseHeaders,
-        String contentLength,String etag) {
-        responseHeaders.add(HttpHeaders.CONTENT_TYPE, "application/zip");
-        responseHeaders.add(HttpHeaders.CONTENT_LENGTH, contentLength);
-        responseHeaders.add(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename=\"" + datasetID + ZIP_EXTENSION
-            + "\"");
-        responseHeaders.add(HttpHeaders.ACCEPT_RANGES, "bytes");
-        responseHeaders.add(HttpHeaders.ETAG,etag);
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType("application/zip"))
+            .header(HttpHeaders.CONTENT_DISPOSITION,
+                ContentDisposition.attachment().filename(datasetID + ZIP_EXTENSION).build().toString())
+            .header(HttpHeaders.ACCEPT_RANGES, "bytes")
+            .eTag(etag)
+            .lastModified(Files.getLastModifiedTime(path).toMillis())
+            .contentLength(Files.size(path))
+            .body(resource);
     }
 
     private void authorizeReadAccess(HttpServletRequest request) throws ApplicationAuthenticationException {
