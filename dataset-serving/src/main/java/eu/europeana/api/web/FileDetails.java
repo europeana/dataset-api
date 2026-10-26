@@ -6,8 +6,10 @@ package eu.europeana.api.web;
 public class FileDetails {
 
     private String fileName;
+
+    private String formatLabel;
     private String contentType;
-    private String fileSize;
+    private Long fileSize;
     private String lastModified;
     private String downloadURL;
 
@@ -20,8 +22,9 @@ public class FileDetails {
      * @param lastModified
      * @param url
      */
-    public FileDetails(String fileName, String contentType,String fileSize, String lastModified,String url) {
+    public FileDetails(String fileName, String formatlabel,String contentType,Long fileSize, String lastModified,String url) {
         this.fileName = fileName;
+        this.formatLabel = formatlabel;
         this.contentType = contentType;
         this.fileSize = fileSize;
         this.lastModified = lastModified;
@@ -36,11 +39,19 @@ public class FileDetails {
         this.fileName = fileName;
     }
 
-    public String getFileSize() {
+    public String getFormatLabel() {
+        return formatLabel;
+    }
+
+    public void setFormatLabel(String formatLabel) {
+        this.formatLabel = formatLabel;
+    }
+
+    public Long getFileSize() {
         return fileSize;
     }
 
-    public void setFileSize(String fileSize) {
+    public void setFileSize(Long fileSize) {
         this.fileSize = fileSize;
     }
 
