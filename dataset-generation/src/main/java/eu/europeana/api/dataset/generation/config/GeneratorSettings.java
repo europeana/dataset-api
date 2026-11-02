@@ -88,6 +88,9 @@ public class GeneratorSettings {
     @Value("${spring.batch.reader: LIST}")
     private String readerType;
 
+    @Value("${retry.recordsPerPage: 20}")
+    private String retryRecordsPerPage;
+
     public String getSearchApiUrl() {
         return searchApiUrl;
     }
@@ -172,5 +175,9 @@ public class GeneratorSettings {
 
     public ReaderType getReaderType() {
         return ReaderType.valueOf(readerType);
+    }
+
+    public String getRetryRecordsPerPage() {
+        return retryRecordsPerPage;
     }
 }

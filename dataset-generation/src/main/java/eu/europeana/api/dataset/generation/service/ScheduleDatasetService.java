@@ -153,6 +153,18 @@ public class ScheduleDatasetService {
     }
 
     /**
+     * Checks if the given dataset has been successfully harvested by verifying
+     * the `hasBeenProcessed` status of the {@link ScheduledDataset}.
+     *
+     * @param dataset the {@link ScheduledDataset} to check for successful harvest status.
+     * @return {@code true} if the dataset has been successfully harvested and marked as processed,
+     *         {@code false} otherwise.
+     */
+    public boolean isDatasetHarvestedSuccessfully(ScheduledDataset dataset) {
+        return dataset.getHasBeenProcessed();
+    }
+
+    /**
      * Retrieves a list of {@link ScheduledDataset} objects where the property
      * `hasBeenProcessed` is set to false.
      *

@@ -1,6 +1,7 @@
 package eu.europeana.api.dataset.generation.processor;
 
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
+import eu.europeana.api.dataset.generation.utils.CheckSumUtil;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.springframework.batch.item.ItemProcessor;
@@ -25,9 +26,17 @@ public abstract class BaseProcessor extends TaskletSupport implements ItemProces
 
     abstract ScheduledDataset doProcessing(ScheduledDataset dataset) throws Exception;
 
+    abstract ScheduledDataset doRetryProcessing(ScheduledDataset dataset) throws Exception;
+
+    abstract boolean retryNeeded(ScheduledDataset dataset);
+
     @Override
     public @Nullable ScheduledDataset process(@NonNull ScheduledDataset item) throws Exception {
-        return doProcessing(item);
+        ScheduledDataset dataset = doProcessing(item);
+        if (retryNeeded(dataset)) {
+            return doRetryProcessing(dataset);
+        }
+        return item;
     }
 
     /**
@@ -55,4 +64,21 @@ public abstract class BaseProcessor extends TaskletSupport implements ItemProces
             }
         }
     }
+
+    /**
+     * Generates MD5 checksum files for a list of target files. Each target file will have
+     * a corresponding checksum file created in the same directory with its name suffixed by ".md5".
+     *
+     * @param targetFiles a list of file paths for which MD5 checksum files will be created;
+     *                    each path must refer to an existing regular file
+     * @throws IOException if any of the specified files do not exist or an error occurs
+     *                     during the creation of a checksum file
+     */
+    protected void createMd5File(List<Path> targetFiles) throws IOException {
+        for (Path targetFile : targetFiles) {
+            CheckSumUtil.createMd5File(targetFile);
+        }
+    }
+
+
 }

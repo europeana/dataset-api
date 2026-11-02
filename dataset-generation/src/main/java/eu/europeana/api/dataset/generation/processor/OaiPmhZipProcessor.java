@@ -3,6 +3,7 @@ package eu.europeana.api.dataset.generation.processor;
 import eu.europeana.api.commons_sb3.definitions.format.RdfFormat;
 import eu.europeana.api.dataset.generation.config.GeneratorSettings;
 import eu.europeana.api.dataset.generation.format.DataFormatter;
+import eu.europeana.api.dataset.generation.model.RetryType;
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
 import eu.europeana.api.dataset.generation.service.ListRecordService;
 import eu.europeana.api.dataset.generation.service.RecordSink;
@@ -13,13 +14,10 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import static eu.europeana.api.dataset.generation.utils.AppConfigConstants.DATA_FORMATS_BEAN;
@@ -72,14 +70,39 @@ public class OaiPmhZipProcessor extends BaseProcessor {
         }
 
         try (MultiRecordSink multiSink = new MultiRecordSink(sinks)) {
-            long failedRecords = listRecordService.streamRecords(dataset, multiSink);
+            // pass recordsPerPage only for the datasets coming for the retries
+            String recordsPerPage = retryNeeded(dataset) ? settings.getRetryRecordsPerPage() : null;
+            long failedRecords = listRecordService.streamRecords(dataset, multiSink, recordsPerPage);
             scheduleDatasetService.updateFailedRecords(dataset, failedRecords); // update failedRecords and hasBeenProcessed
         }
 
         // 🔥 Atomic swap happens ONLY after all sinks are closed
-        performAtomicSwap(tempFiles, targetFiles);
+        // and if the dataset is harvested successfully
+        if (scheduleDatasetService.isDatasetHarvestedSuccessfully(dataset)) {
+            performAtomicSwap(tempFiles, targetFiles);
+            createMd5File(targetFiles);
+        }
 
         return dataset;
+    }
+
+    @Override
+    ScheduledDataset doRetryProcessing(ScheduledDataset dataset) throws Exception {
+       return doProcessing(dataset);
+    }
+
+    /**
+     * Determines if a retry is needed for the given dataset based on its harvest status
+     * and retry type.
+     *
+     * @param dataset the {@link ScheduledDataset} to check for retry necessity.
+     * @return {@code true} if the dataset has not been successfully harvested and its retry type
+     *         is {@code RetryType.LOWER_RECORDS_PER_PAGE}; {@code false} otherwise.
+     */
+    @Override
+    boolean retryNeeded(ScheduledDataset dataset) {
+        return !scheduleDatasetService.isDatasetHarvestedSuccessfully(dataset)
+               && (dataset.getRetryType() != null && dataset.getRetryType().equals(RetryType.LOWER_RECORDS_PER_PAGE));
     }
 
     /**

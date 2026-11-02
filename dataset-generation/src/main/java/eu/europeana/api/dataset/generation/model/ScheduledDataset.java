@@ -29,6 +29,9 @@ public class ScheduledDataset {
     private long failedRecords;
 
     @Enumerated(EnumType.STRING)
+    private RetryType retryType;
+
+    @Enumerated(EnumType.STRING)
     private DatasetStatus status;
 
     public String getDatasetId() {
@@ -84,5 +87,13 @@ public class ScheduledDataset {
 
     public void setStatus(DatasetStatus status) {
         this.status = status;
+    }
+
+    public RetryType getRetryType() {
+        return retryType;
+    }
+
+    public void setRetryType(RetryType retryType) {
+        this.retryType = retryType;
     }
 }

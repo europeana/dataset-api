@@ -20,10 +20,13 @@ public class OAIPMHQueryUtils {
     public static final String IDENTIFIER         = "identifier";
     public static final String METADATA           = "metadata";
     public static final String RESUMPTION_TOKEN   = "resumptionToken";
+    public static final String RECORDS_PER_PAGE   = "recordsPerPage";
 
+    public static final String RETRY_WITH_LOWER_RECORDS_PER_PAGE   = "Retry with lower records per page";
 
     // todo check if we need to add harvest-from "from" param
-    public static String buildListRecordQuery(String oaipmhUrl, String verb, String metadataPrefix, String setId, String resumptionToken) throws URISyntaxException {
+    public static String buildListRecordQuery(String oaipmhUrl, String verb, String metadataPrefix, String setId,
+                                              String resumptionToken, String recordsPerPage) throws URISyntaxException {
             URIBuilder uriBuilder = new URIBuilder(oaipmhUrl)
                     .addParameter(VERB, verb);
             // If resumptionToken is present, then build resumptionToken rqeuest
@@ -35,6 +38,11 @@ public class OAIPMHQueryUtils {
                     uriBuilder.addParameter(SET, setId);
                 }
             }
+
+            if (StringUtils.isNotEmpty(recordsPerPage)) {
+                uriBuilder.addParameter(RECORDS_PER_PAGE, recordsPerPage);
+            }
+
             return uriBuilder.build().toString();
     }
 }

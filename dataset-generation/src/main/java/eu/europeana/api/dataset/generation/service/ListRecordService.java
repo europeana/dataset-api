@@ -3,10 +3,12 @@ package eu.europeana.api.dataset.generation.service;
 import eu.europeana.api.commons_sb3.error.EuropeanaApiException;
 import eu.europeana.api.dataset.generation.config.GeneratorSettings;
 import eu.europeana.api.dataset.generation.exception.DatasetGenerationException;
+import eu.europeana.api.dataset.generation.model.RetryType;
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
 import eu.europeana.api.dataset.generation.utils.ProgressLogger;
 import eu.europeana.api.dataset.oaipmh.OAIPMHServiceClient;
 import eu.europeana.api.dataset.oaipmh.exception.OaiPmhClientException;
+import eu.europeana.api.dataset.oaipmh.exception.RetryWithReducedPageSizeException;
 import eu.europeana.api.dataset.oaipmh.model.OaiPage;
 import eu.europeana.api.dataset.oaipmh.model.Record;
 import eu.europeana.api.dataset.oaipmh.utils.OAIPMHQueryUtils;
@@ -40,6 +42,10 @@ public class ListRecordService {
     @Resource(name = BEAN_OAI_PMH_CLIENT)
     OAIPMHServiceClient client;
 
+    public long streamRecords(ScheduledDataset dataset, RecordSink sink) throws EuropeanaApiException, IOException {
+        return streamRecords(dataset, sink, null);
+    }
+
     /**
      * Streams records from a specified dataset and processes them using a provided RecordSink.
      * This method fetches records in pages from an OAI-PMH compliant endpoint, processes
@@ -51,8 +57,8 @@ public class ListRecordService {
      * @return failed records count
      */
     @SuppressWarnings("java:S109")
-    public long streamRecords(ScheduledDataset dataset, RecordSink sink) throws EuropeanaApiException, IOException {
-        LOG.info("Streaming records for set {}", dataset.getDatasetId());
+    public long streamRecords(ScheduledDataset dataset, RecordSink sink, String recordsPerPage) throws EuropeanaApiException, IOException {
+        LOG.info("Streaming records for set {} ", dataset.getDatasetId());
         ProgressLogger logger = new ProgressLogger(dataset.getDatasetId(), dataset.getTotalSize(), settings.getLogInterval());
 
         long counter = 0;
@@ -66,10 +72,10 @@ public class ListRecordService {
                         LIST_RECORDS_VERB,
                         "edm",
                         dataset.getDatasetId(),
-                        resumptionToken
+                        resumptionToken,
+                        recordsPerPage
                 );
 
-//                OaiPage response = client.executeAndGetResponse(request);
                 OaiPage response = executeWithRetry(request);
                 if (response == null) {
                     break;
@@ -92,6 +98,9 @@ public class ListRecordService {
 
         } catch (URISyntaxException e) {
             throw new DatasetGenerationException("Error creating the ListRecordQuery url - "+e.getMessage(), e);
+        } catch (RetryWithReducedPageSizeException e) {
+            LOG.info("Dataset will be later retried with reduced page size : {}", dataset.getDatasetId(), e.getMessage());
+            dataset.setRetryType(RetryType.LOWER_RECORDS_PER_PAGE);
         } finally {
             failedRecords = dataset.getTotalSize() - counter;
             // LOG only if record failed
@@ -134,7 +143,7 @@ public class ListRecordService {
      * @return the response as an {@link OaiPage} object if the execution is successful
      * @throws EuropeanaApiException if all retry attempts fail or an unexpected error occurs during request execution
      */
-    private OaiPage executeWithRetry(String request) throws EuropeanaApiException {
+    private OaiPage executeWithRetry(String request) throws EuropeanaApiException, URISyntaxException, RetryWithReducedPageSizeException {
         int attempt = 0;
         long delay = INITIAL_DELAY_MS;
 
