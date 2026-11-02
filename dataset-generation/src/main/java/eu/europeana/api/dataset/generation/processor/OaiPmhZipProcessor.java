@@ -88,6 +88,9 @@ public class OaiPmhZipProcessor extends BaseProcessor {
 
     @Override
     ScheduledDataset doRetryProcessing(ScheduledDataset dataset) throws Exception {
+        LOG.info("Dataset {} retry processing started for retry type {}",
+                dataset.getDatasetId(),
+                dataset.getRetryType());
        return doProcessing(dataset);
     }
 

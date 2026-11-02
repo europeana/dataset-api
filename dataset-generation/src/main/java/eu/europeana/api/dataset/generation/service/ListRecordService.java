@@ -99,7 +99,8 @@ public class ListRecordService {
         } catch (URISyntaxException e) {
             throw new DatasetGenerationException("Error creating the ListRecordQuery url - "+e.getMessage(), e);
         } catch (RetryWithReducedPageSizeException e) {
-            LOG.info("Dataset will be later retried with reduced page size : {}", dataset.getDatasetId(), e.getMessage());
+            LOG.info("Dataset {} will be later retried with reduced page size : {}",
+                    dataset.getDatasetId(), settings.getRetryRecordsPerPage());
             dataset.setRetryType(RetryType.LOWER_RECORDS_PER_PAGE);
         } finally {
             failedRecords = dataset.getTotalSize() - counter;
