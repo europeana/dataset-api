@@ -14,6 +14,7 @@ import eu.europeana.api.dataset.generation.listener.DatasetReportListener;
 import eu.europeana.api.dataset.generation.listener.ScheduledDatasetItemListener;
 import eu.europeana.api.dataset.generation.model.JobParameter;
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
+import eu.europeana.api.dataset.generation.processor.CheckSumGenerationTasklet;
 import eu.europeana.api.dataset.generation.processor.DatasetDeletionTasklet;
 import eu.europeana.api.dataset.generation.processor.TaskletSupport;
 import eu.europeana.api.dataset.generation.reader.ConcurrentListItemReader;
@@ -222,6 +223,14 @@ public class AppAutoConfig {
                 getStatusReportCsvPath(),
                 applicationContext.getBean(SearchApiDatasetReader.class),
                 getFileDeletionService()) ;
+    }
+
+    @Bean
+    public CheckSumGenerationTasklet getCheckSumGenerationTasklet() {
+        return new CheckSumGenerationTasklet(
+                settings.getDatasetsFolder(),
+                getFormats(),
+                settings.isCheckSumEnabled());
     }
 
     @Bean(name = SLACK_CONNECTION_BEAN)

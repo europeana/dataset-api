@@ -91,6 +91,9 @@ public class GeneratorSettings {
     @Value("${retry.recordsPerPage: 20}")
     private String retryRecordsPerPage;
 
+    @Value("${checksum.enabled: false}")
+    private boolean checkSumEnabled;
+
     public String getSearchApiUrl() {
         return searchApiUrl;
     }
@@ -179,5 +182,9 @@ public class GeneratorSettings {
 
     public String getRetryRecordsPerPage() {
         return retryRecordsPerPage;
+    }
+
+    public boolean isCheckSumEnabled() {
+        return checkSumEnabled;
     }
 }
