@@ -17,4 +17,7 @@ public interface ScheduledDatasetRepository extends JpaRepository<ScheduledDatas
     List<ScheduledDataset> findAllById(Iterable<String> ids);
 
     List<ScheduledDataset> findByHasBeenProcessedFalse();
+
+    List<ScheduledDataset> findByHasBeenProcessedTrue();
+
 }

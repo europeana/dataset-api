@@ -189,6 +189,7 @@ public class JobCompletionTasklet extends TaskletSupport implements Tasklet {
         Map<String, Long> counts = countStatus(csvPath);
         String table = buildTable(csvPath, 10);// max 10 rows for now, a full report will be attached
         long total = scheduleDatasetService.count();
+        long processedDatasets = scheduleDatasetService.countProcessed();
 
         String summary = counts.entrySet().stream()
                 .map(e -> e.getKey() + " = " + e.getValue())
@@ -197,7 +198,8 @@ public class JobCompletionTasklet extends TaskletSupport implements Tasklet {
         List<Map<String, Object>> blocks = new ArrayList<>();
 
         blocks.add(section("📊 *Dataset Report*"));  // Header
-        blocks.add(section(total + " datasets were processed, see <" + getFullReportLink(csvPath) + "| full report>"));
+        blocks.add(section(total + " datasets were scheduled"));
+        blocks.add(section(processedDatasets + " datasets were processed, see <" + getFullReportLink(csvPath) + "| full report>"));
         blocks.add(section("```" + summary + "```")); // Summary block
         blocks.add(section("```" + table + "```"));  // Table preview
 

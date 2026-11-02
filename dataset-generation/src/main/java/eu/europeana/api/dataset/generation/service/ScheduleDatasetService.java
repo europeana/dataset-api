@@ -175,6 +175,17 @@ public class ScheduleDatasetService {
         return repository.findByHasBeenProcessedFalse();
     }
 
+    /**
+     * Retrieves a list of {@link ScheduledDataset} objects where the property
+     * `hasBeenProcessed` is set to true.
+     *
+     * @return A list of {@link ScheduledDataset} objects that have been processed.
+     *         If no such objects exist, an empty list is returned.
+     */
+    public long countProcessed() {
+        return repository.findByHasBeenProcessedTrue().stream().count();
+    }
+
 
     /**
      * Retrieves the total count of scheduled datasets from the repository.
