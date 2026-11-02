@@ -15,6 +15,7 @@ import java.util.HexFormat;
  * @author Srishti Singh
  * @since 22 October 2026
  */
+@SuppressWarnings("java:S4790")
 public class CheckSumUtil {
 
     private static final String ALGORITHM = "MD5";
