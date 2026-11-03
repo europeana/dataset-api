@@ -49,49 +49,49 @@ public class GeneratorSettings {
     @Value("${slack.webhook}")
     private String slackWebhook;
 
-    @Value("${batch.step.chunkSize: 10}")
+    @Value("${batch.step.chunkSize:10}")
     private int batchChunkSize;
 
     /**
      * The core pool size says a thread pool executor will start with N number of threads.
      */
-    @Value("${batch.step.updates.executor.corePool: 10}")
+    @Value("${batch.step.updates.executor.corePool:10}")
     private int batchUpdatesCorePoolSize;
 
     /**
      * A throttle-limit T says that, regardless of the number of threads available
      * in the thread pool (batchUpdatesCorePoolSize), only use T of those threads for a tasklet.
      */
-    @Value("${batch.step.updates.throttleLimit: 10}")
+    @Value("${batch.step.updates.throttleLimit:10}")
     private int batchUpdatesThrottleLimit;
 
     /**
      * If all (batchUpdatesCorePoolSize) threads are busy and new task comes up,
      * then It will keep tasks in queue.
      */
-    @Value("${batch.step.updates.executor.queueSize: 0}")
+    @Value("${batch.step.updates.executor.queueSize:0}")
     private int batchUpdatesQueueSize;
 
     /*
     * If queue is full it will create 11th thread and will go till maxPool value.
      */
-    @Value("${batch.step.updates.executor.maxPool: 25}")
+    @Value("${batch.step.updates.executor.maxPool:25}")
     private int batchUpdatesMaxPoolSize;
 
     /**
      * Progress logger logging interval in seconds
      * By default 2 minutes (120 seconds)
      */
-    @Value("${log.interval: 120}")
+    @Value("${log.interval:120}")
     private int logInterval;
 
-    @Value("${spring.batch.reader: LIST}")
+    @Value("${spring.batch.reader:LIST}")
     private String readerType;
 
-    @Value("${retry.recordsPerPage: 20}")
+    @Value("${retry.recordsPerPage:20}")
     private String retryRecordsPerPage;
 
-    @Value("${checksum.enabled: false}")
+    @Value("${checksum.enabled:false}")
     private boolean checkSumEnabled;
 
     public String getSearchApiUrl() {
