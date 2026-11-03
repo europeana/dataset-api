@@ -39,6 +39,7 @@ public class CheckSumGenerationTasklet extends TaskletSupport implements Tasklet
         long start = System.currentTimeMillis();
 
         formats.keySet().forEach(format -> {
+            LOG.info("Generating checksums for format {}", format);
             Path directory = Paths.get(storagePath).resolve(TaskletSupport.getFolderName(format));
             try {
                 generateChecksums(directory);
