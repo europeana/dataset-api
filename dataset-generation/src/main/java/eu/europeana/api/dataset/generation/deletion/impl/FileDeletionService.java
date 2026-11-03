@@ -61,6 +61,10 @@ public record FileDeletionService(String storagePath,
                             try {
                                 Files.delete(path);
                                 LOG.info("Deleted file: {}", path);
+                                // Delete corresponding MD5 checksum file
+                                Path md5Path = dir.resolve(fileName + ".md5");
+                                Files.deleteIfExists(md5Path);
+                                LOG.info("Deleted checksum file: {}", md5Path);
                             } catch (IOException e) {
                                 LOG.error("Failed to delete file: {}", path, e);
                             }
