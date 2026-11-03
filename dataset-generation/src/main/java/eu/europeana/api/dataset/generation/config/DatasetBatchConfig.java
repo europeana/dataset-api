@@ -3,6 +3,7 @@ package eu.europeana.api.dataset.generation.config;
 import eu.europeana.api.dataset.generation.listener.ScheduledDatasetItemListener;
 import eu.europeana.api.dataset.generation.model.ReaderType;
 import eu.europeana.api.dataset.generation.model.ScheduledDataset;
+import eu.europeana.api.dataset.generation.processor.CheckSumGenerationTasklet;
 import eu.europeana.api.dataset.generation.processor.JobCompletionTasklet;
 import eu.europeana.api.dataset.generation.processor.DatasetDeletionTasklet;
 import eu.europeana.api.dataset.generation.processor.OaiPmhZipProcessor;
@@ -80,6 +81,7 @@ public class DatasetBatchConfig extends DefaultBatchConfiguration {
         return new JobBuilder(JOB_DOWNLOAD_SCHEDULED_DATASETS, jobRepository)
                 .start(datasetGenerationStep(jobRepository))
                 .next(removeDatasets(jobRepository))
+                .next(generateCheckSums(jobRepository))
                 .next(updateAndSendReport(jobRepository))
                 .build();
     }
@@ -148,6 +150,14 @@ public class DatasetBatchConfig extends DefaultBatchConfiguration {
                 .tasklet(appContext.getBean(DatasetDeletionTasklet.class), transactionManager)
                 .build();
     }
+
+    @Bean
+    public Step generateCheckSums(JobRepository jobRepository) {
+        return new StepBuilder("generateCheckSums", jobRepository)
+                .tasklet(appContext.getBean(CheckSumGenerationTasklet.class), transactionManager)
+                .build();
+    }
+
 
     /**
      * Retrieves the chunk size to be used for processing. The chunk size determines

@@ -12,5 +12,15 @@ public class OaiPmhIBMProcessor extends BaseProcessor {
     ScheduledDataset doProcessing(ScheduledDataset dataset) throws Exception {
         return null;
      }
+
+    @Override
+    ScheduledDataset doRetryProcessing(ScheduledDataset dataset) throws Exception {
+        return null;
+    }
+
+    @Override
+    boolean retryNeeded(ScheduledDataset dataset) {
+        return false;
+    }
 }
 

@@ -21,7 +21,7 @@ import static eu.europeana.api.dataset.generation.model.DatasetStatus.*;
 
 public class TaskletSupport {
 
-    private static final Logger LOG = LogManager.getLogger(TaskletSupport.class);
+    protected static final Logger LOG = LogManager.getLogger(TaskletSupport.class);
 
     /**
      * Determines the folder name based on the provided RDF format.

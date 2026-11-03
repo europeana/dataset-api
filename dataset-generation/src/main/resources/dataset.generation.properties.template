@@ -45,3 +45,9 @@ log.interval=
 
 ## the type of reader dataset api will use. Values are JDBC and LIST. By default LIST is used
 spring.batch.reader=LIST
+
+## the number of records to be fetched from the oai server per harvest
+retry.recordsPerPage=20
+
+#Checksum flow is enabled
+checksum.enabled=true

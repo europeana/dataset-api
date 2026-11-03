@@ -1,12 +1,11 @@
 package eu.europeana.api.dataset.oaipmh;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import eu.europeana.api.commons_sb3.http.HttpConnection;
 import eu.europeana.api.dataset.oaipmh.exception.OaiPmhClientException;
+import eu.europeana.api.dataset.oaipmh.exception.RetryWithReducedPageSizeException;
 import eu.europeana.api.dataset.oaipmh.model.OaiPage;
 import eu.europeana.api.dataset.oaipmh.parser.OaiRawStreamingParser;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
-import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.http.ParseException;
@@ -40,18 +39,20 @@ public class OAIPMHServiceClient {
      * @return an {@link OaiPage} containing the parsed records and resumption token if the request is successful,
      *         or {@code null} if an exception occurs or if the response is not successful.
      */
-    public OaiPage executeAndGetResponse(String request) throws OaiPmhClientException {
+    public OaiPage executeAndGetResponse(String request) throws OaiPmhClientException, RetryWithReducedPageSizeException {
         try (CloseableHttpResponse response =  oaiPmhClient.get(request, Collections.singletonMap(HttpHeaders.ACCEPT, "application/xml"), null)) {
             if (response.getCode() == HttpStatus.SC_OK) {
                 return OaiRawStreamingParser.parseOaiResponse(response.getEntity().getContent());
             }
             else { // throw error for all other http status
-
                 LOG.error("Error response from OAI-PMH request {}. code : {}", request, response.getCode());
                 LOG.error("Error response : {}", EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8));
                 throw new OaiPmhClientException(response.getCode());
             }
-        } catch (IOException | XMLStreamException | ParserConfigurationException | ParseException e) {
+        } catch (XMLStreamException e ) { // catch the exceptions we want to retry
+            LOG.error("Exception while parsing the response from oai pmh - {}", request, e);
+            throw new RetryWithReducedPageSizeException(e.getMessage());
+        } catch (IOException | ParserConfigurationException | ParseException e) {
             LOG.error("Exception while getting the response from oai pmh - {}", request, e);
         }
         return null;
